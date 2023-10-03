@@ -23,6 +23,7 @@ void PLC_BlinkTask() {
     static TickType_t last = 0;
     // Invert state every 500 ms
     if ((xTaskGetTickCount() - last) >= interval) {
+        BSP_LED_Toggle(LED_BLUE);
         // Set all to 0
         PLC_Outputs = (PLC_OUTPUT_t){0};
         // Turn on current output
@@ -99,7 +100,7 @@ void PLC_CommunicationTask() {
     }
 }
 
-void PLC_Configure() {   
+void PLC_Configure() {
     // Initialize PLC outputs
     RELAY_StatusTypeDef relayStatus = BSP_Relay_Init();
     // Initialize PLC inputs
