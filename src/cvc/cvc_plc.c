@@ -5,9 +5,9 @@
  *      Author: Andrei Gerashchenko
  */
 
-#include <cvc_data.h>
 #include <clt01_38s.h>
 #include <cmsis_os.h>
+#include <cvc_data.h>
 #include <cvc_plc.h>
 #include <vni8200xp.h>
 #include <x_nucleo_plc01a1.h>
@@ -23,7 +23,6 @@ void PLC_BlinkTask() {
     static TickType_t last = 0;
     // Invert state every 500 ms
     if ((xTaskGetTickCount() - last) >= interval) {
-        BSP_LED_Toggle(LED_BLUE);
         // Set all to 0
         PLC_Outputs = (PLC_OUTPUT_t){0};
         // Turn on current output
@@ -59,6 +58,13 @@ void PLC_BlinkTask() {
         output = (output == 7) ? 0 : (output + 1);
         last = xTaskGetTickCount();
     }
+
+    // Check if any input is active
+    if (PLC_Inputs.IN1 || PLC_Inputs.IN2 || PLC_Inputs.IN3 || PLC_Inputs.IN4 || PLC_Inputs.IN5 || PLC_Inputs.IN6 || PLC_Inputs.IN7 || PLC_Inputs.IN8) {
+        BSP_LED_On(LED_BLUE);
+    } else {
+        BSP_LED_Off(LED_BLUE);
+    }
 }
 
 // Convert output struct to uint8_t
@@ -83,18 +89,30 @@ void PLC_CommunicationTask() {
     const TickType_t interval = 40 / portTICK_PERIOD_MS;
     static TickType_t last = 0;
 
+    uint8_t* relay_status;
+
     if ((xTaskGetTickCount() - last) >= interval) {
         // Critical section - prevent context switch while transmitting
         taskENTER_CRITICAL();
-        uint8_t *inputs = BSP_CURRENT_LIMITER_Read();
-        PLC_Decode(*inputs);
+        // BSP_CURRENT_LIMITER_Read() returns a pointer to a uint8_t[2], 2nd byte contains inputs
+        uint8_t inputs = *(BSP_CURRENT_LIMITER_Read() + 1*sizeof(uint8_t));
+        PLC_Decode(inputs);
         taskEXIT_CRITICAL();
 
         // Critical section - prevent context switch while transmitting
         taskENTER_CRITICAL();
+        BSP_RELAY_EN_Out();
         uint8_t outputs = PLC_Encode(PLC_Outputs);
-        BSP_RELAY_SetOutputs(&outputs);
+        relay_status = BSP_RELAY_SetOutputs(&outputs);
         taskEXIT_CRITICAL();
+
+        if (BSP_GetRelayStatus(relay_status) == RELAY_OK) {
+            BSP_LED_On(LED_GREEN);
+            BSP_LED_Off(LED_RED);
+        } else {
+            BSP_LED_On(LED_RED);
+            BSP_LED_Off(LED_GREEN);
+        }
 
         last = xTaskGetTickCount();
     }
@@ -108,15 +126,18 @@ void PLC_Configure() {
     // Reset PLC outputs
     BSP_RELAY_Reset();
     HAL_Delay(100);
-    // Enable PLC outputs
-    BSP_RELAY_EN_Out();
 
     // Check if both inputs and outputs are working correctly
     if (relayStatus == RELAY_OK && currentLimiterStatus == CURRENT_LIMITER_OK) {
         BSP_LED_On(LED_GREEN);
         BSP_LED_Off(LED_RED);
+        HAL_Delay(500);
     } else {
         BSP_LED_On(LED_RED);
         BSP_LED_Off(LED_GREEN);
+        for (;;) {
+            BSP_LED_Toggle(LED_BLUE);  // Blink blue LED to indicate PLC error
+            HAL_Delay(250);
+        }
     }
 }
