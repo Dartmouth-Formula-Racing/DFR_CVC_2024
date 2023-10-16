@@ -112,29 +112,31 @@
 #define X_NUCLEO_TIM_PRESCALER          749
   
 //#define VNI8200XP_CS_CLK_ENABLE()       __GPIOC_CLK_ENABLE();
-#define VNI8200XP_CS_CLK_ENABLE()					__HAL_RCC_GPIOD_CLK_ENABLE();
 //#define VNI8200XP_CS_PIN                GPIO_PIN_7
 //#define VNI8200XP_CS_PORT               GPIOC
+#define VNI8200XP_CS_CLK_ENABLE()					__HAL_RCC_GPIOD_CLK_ENABLE();
 #define VNI8200XP_CS_PORT               GPIOD
 #define VNI8200XP_CS_PIN                GPIO_PIN_14
 
-//#define VNI8200XP_OUT_EN_CLK_ENABLE()   __GPIOB_CLK_ENABLE();
+// #define VNI8200XP_OUT_EN_CLK_ENABLE()   __GPIOB_CLK_ENABLE();
+// #define VNI8200XP_OUT_EN_PIN            GPIO_PIN_10
+// #define VNI8200XP_OUT_EN_PORT           GPIOB
 #define VNI8200XP_OUT_EN_CLK_ENABLE()   __HAL_RCC_GPIOE_CLK_ENABLE();
-//#define VNI8200XP_OUT_EN_PIN            GPIO_PIN_10
-//#define VNI8200XP_OUT_EN_PORT           GPIOB
 #define VNI8200XP_OUT_EN_PORT           GPIOE
 #define VNI8200XP_OUT_EN_PIN						GPIO_PIN_9
 
 //#define CLT01_38S_CS_CLK_ENABLE()       __GPIOB_CLK_ENABLE();
-#define CLT01_38S_CS_CLK_ENABLE()       __HAL_RCC_GPIOD_CLK_ENABLE();
 //#define CLT01_38S_CS_PIN                GPIO_PIN_6
 //#define CLT01_38S_CS_PORT               GPIOB
+#define CLT01_38S_CS_CLK_ENABLE()       __HAL_RCC_GPIOD_CLK_ENABLE();
 #define CLT01_38S_CS_PORT               GPIOD
 #define CLT01_38S_CS_PIN                GPIO_PIN_15
 
 #define VNI8200XP_RESET_PORT            GPIOC   
 #define VNI8200XP_RESET_PIN             GPIO_PIN_7 
    
+// #define VNI8200XP_ENABLE_PORT           GPIOB
+// #define VNI8200XP_ENABLE_PIN            GPIO_PIN_10
 #define VNI8200XP_ENABLE_PORT           GPIOE
 #define VNI8200XP_ENABLE_PIN            GPIO_PIN_9
    
