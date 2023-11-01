@@ -2,13 +2,19 @@
 #include "cvc_constants.h"
 #include "stdbool.h"
 
-
 volatile CVC_STATE_t CVC_STATE = VOLTAGE_CHECK;
+
+/**
+ * @brief Checks if GLVS and accumulator voltages are within acceptable range
+ * 
+ * @return true 
+ * @return false 
+ */
+bool VoltageCheck();
 
 void CVC_StateMachineInit() {
     CVC_STATE = VOLTAGE_CHECK;
 }
-
 
 // VOLTAGE_CHECK,
 // WAIT_FOR_PRECHARGE,

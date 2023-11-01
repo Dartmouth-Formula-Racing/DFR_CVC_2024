@@ -1,0 +1,91 @@
+@startuml State Diagram
+skinparam fixCircleLabelOverlapping true
+skinparam linetype ortho
+skinparam Arrow {
+  MessageAlignment left
+  Thickness 1.5
+  FontStyle Bold
+
+}
+
+skinparam state {
+  BackgroundColor LightGray
+  BorderColor Gray
+  BorderThickness 1
+  fontSize 14
+  FontName Consolas
+  BackgroundColor<<Error>> Red
+  FontColor<<Error>> White
+  BackgroundColor<<Startup>> Green
+  FontColor<<Startup>> White
+  BackgroundColor<<Charge>> Blue
+  FontColor<<Charge>> White
+}
+
+skinparam nodesep 300
+skinparam ranksep 70
+
+
+'------------------------------------
+'Startup Logic Flow
+
+state "Startup Sequence" as StartupSequence <<Startup>>  {
+
+  [*] --> VOLTAGE_CHECK
+  VOLTAGE_CHECK -down-> WAIT_FOR_PRECHARGE : PASS
+
+  WAIT_FOR_PRECHARGE -right-> PRECHARGE : AIR Power ON
+  PRECHARGE --> WAIT_FOR_PRECHARGE: AIR Power OFF
+
+  NOT_READY_TO_DRIVE -down-> READY_TO_DRIVE: Drive or Reverse Pressed
+
+  READY_TO_DRIVE -right-> NOT_READY_TO_DRIVE: Neutral Pressed
+
+  PRECHARGE --down--> NOT_READY_TO_DRIVE: BUS Voltage > 95% \n & \n AIR Power ON
+
+  READY_TO_DRIVE -down-> BUZZER : RTD Pressed
+
+  BUZZER -down-> DRIVE: Buzzer Timer DONE
+
+  READY_TO_DRIVE -up-> WAIT_FOR_PRECHARGE : AIR Power OFF
+
+  BUZZER -up-> WAIT_FOR_PRECHARGE : AIR Power OFF
+
+  DRIVE -up-> WAIT_FOR_PRECHARGE : AIR Power OFF
+
+}
+
+state "Charge States" as ChargeStates <<Charge>> {
+  READY_TO_DRIVE -[#blue]-> CHARGING : <color:blue> CHG Enable HI
+  BUZZER -[#blue]-> CHARGE_ERROR : <color:blue> CHG Enable HI
+  CHARGING -[#blue]-> CHARGE_ERROR : <color:blue> CHG Enable LOW
+  CHARGING -down[#blue]-> CHARGE_DONE : <color:blue> CHG DONE
+  CHARGING -[#blue]-> WAIT_FOR_PRECHARGE : <color:blue> AIR Power OFF
+  DRIVE -[#blue]-> CHARGE_ERROR : <color:blue> CHG Enable HI
+}
+
+state "Error States" as ErrorStates <<Error>> {
+  '------------------------------------
+  'Errors
+  CVC_ERROR --> CVC_ERROR: TEMP LOW
+
+  VOLTAGE_CHECK -[#red]-> CVC_ERROR: <color:red> ERROR
+  WAIT_FOR_PRECHARGE -[#red]-> CVC_ERROR: <color:red> ERROR
+  PRECHARGE -[#red]-> CVC_ERROR:<color:red> ERROR
+  READY_TO_DRIVE -[#red]-> CVC_ERROR:<color:red> ERROR
+  BUZZER -[#red]-> CVC_ERROR:<color:red> ERROR
+  CHARGING -right[#red]-> CVC_ERROR:<color:red> ERROR
+  DRIVE -[#red]-> CVC_ERROR:<color:red> ERROR
+
+  CVC_WARN -right[#red]-> CVC_ERROR:<color:red> ERROR
+
+  '------------------------------------
+  'Warnings
+  PRECHARGE -[#orange]-> CVC_WARN: <color:orange> WARN
+  READY_TO_DRIVE -right[#orange]-> CVC_WARN: <color:orange> WARN
+  BUZZER -right[#orange]-> CVC_WARN: <color:orange> WARN
+  CHARGING -right[#orange]-> CVC_WARN: <color:orange> WARN
+  DRIVE -right[#orange]-> CVC_WARN: <color:orange> WARN
+}
+
+@enduml
