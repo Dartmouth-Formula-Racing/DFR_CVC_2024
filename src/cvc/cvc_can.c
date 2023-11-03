@@ -5,17 +5,17 @@
  *      Author: Andrei Gerashchenko
  */
 
+#include <FreeRTOS.h>
 #include <cvc_can.h>
 #include <cvc_data.h>
-#include <stm32f7xx_hal_can.h>
-#include <FreeRTOS.h>
 #include <queue.h>
 #include <stdbool.h>
+#include <stm32f7xx_hal_can.h>
+#include <stm32f7xx_nucleo_144.h>
 
 extern CAN_HandleTypeDef hcan1;
 QueueHandle_t CAN_TxQueue;
 QueueHandle_t CAN_RxQueue;
-
 
 void CAN_Configure() {
     CAN_TxQueue = xQueueCreate(CAN_QUEUE_LENGTH, sizeof(CAN_Queue_Frame_t));
@@ -28,7 +28,7 @@ void CAN_Configure() {
 /**
  * @brief Internal function to receive CAN messages and place them in Rx queue.
  * @param None
- * @retval None 
+ * @retval None
  */
 void CANRxToQueue() {
     uint32_t rx0_count = HAL_CAN_GetRxFifoFillLevel(&hcan1, CAN_RX_FIFO0);
@@ -47,7 +47,7 @@ void CANRxToQueue() {
         // Put in Rx queue
         xQueueSendToBack(CAN_RxQueue, &rx_frame, 0);
     }
-    
+
     // Check if there is a message in Rx FIFO 1
     if (rx1_count > 0) {
         HAL_CAN_GetRxMessage(&hcan1, CAN_RX_FIFO1, &rx_frame.Rx_header, rx_frame.data);
@@ -59,7 +59,7 @@ void CANRxToQueue() {
 /**
  * @brief Internal function to transmit CAN messages from Tx queue.
  * @param None
- * @retval None 
+ * @retval None
  */
 void CANTxFromQueue() {
     // Return early if there are no messages in Tx queue
@@ -130,7 +130,9 @@ void CANInterpretRx() {
     xQueueReceive(CAN_RxQueue, &rx_frame, 0);
 
     // TODO: Parse message using CAN parser functions
-        
+    if (rx_frame.Rx_header.StdId == 1) {
+        BSP_LED_Toggle(LED_BLUE); // Blink blue LED on reception of CAN message with ID 1
+    }
 }
 
 void CAN_InterpretTask() {
@@ -140,6 +142,22 @@ void CAN_InterpretTask() {
 
     if ((xTaskGetTickCount() - last) >= interval) {
         CANInterpretRx();
+        last = xTaskGetTickCount();
+    }
+}
+
+void CAN_TestSend() {
+    // Interval for CAN send task
+    const TickType_t interval = CAN_TEST_SEND_MS / portTICK_PERIOD_MS;
+    static TickType_t last = 0;
+
+    // Data to send
+    uint8_t data[8] = {0};
+    // CAN ID to send
+    uint32_t id = 1;
+
+    if ((xTaskGetTickCount() - last) >= interval) {
+        CAN_Transmit(id, data, sizeof(data), false);
         last = xTaskGetTickCount();
     }
 }

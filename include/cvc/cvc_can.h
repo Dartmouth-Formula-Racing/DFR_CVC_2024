@@ -16,6 +16,7 @@
 #define CAN_QUEUE_LENGTH 10 // Length of CAN Tx queue
 #define CAN_PERIPHERAL_MS 1 // 1 ms, 1000 Hz
 #define CAN_PROCESSING_MS 1 // 1 ms, 1000 Hz
+#define CAN_TEST_SEND_MS 500 // 500 ms, 2 Hz
 
 // CAN Tx and Rx queues
 extern QueueHandle_t CAN_TxQueue;
@@ -63,5 +64,12 @@ void CAN_Transmit(uint32_t id, uint8_t data[8], uint8_t len, bool isExt);
  * @retval None 
  */
 void CAN_InterpretTask(void);
+
+/**
+ * @brief Function for testing CAN communication.
+ * @param None
+ * @retval None 
+ */
+void CAN_TestSend(void);
 
 #endif /* INC_CVC_CAN_H_ */
