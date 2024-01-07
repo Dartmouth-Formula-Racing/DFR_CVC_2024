@@ -20,7 +20,6 @@ QueueHandle_t CAN_RxQueue;
 void CAN_Configure() {
     CAN_TxQueue = xQueueCreate(CAN_QUEUE_LENGTH, sizeof(CAN_Queue_Frame_t));
     CAN_RxQueue = xQueueCreate(CAN_QUEUE_LENGTH, sizeof(CAN_Queue_Frame_t));
-    HAL_CAN_Start(&hcan1);
 }
 
 // ===================== CAN Communication Task Functions =====================
@@ -31,29 +30,15 @@ void CAN_Configure() {
  * @retval None
  */
 void CANRxToQueue() {
-    uint32_t rx0_count = HAL_CAN_GetRxFifoFillLevel(&hcan1, CAN_RX_FIFO0);
-    uint32_t rx1_count = HAL_CAN_GetRxFifoFillLevel(&hcan1, CAN_RX_FIFO1);
-
-    // Return early if there are no messages in either FIFO
-    if (rx0_count + rx1_count == 0) {
+    // Return early if no messages have been received
+    if (HAL_CAN_GetRxFifoFillLevel(&hcan1, CAN_RX_FIFO0)) {
         return;
     }
 
     CAN_Queue_Frame_t rx_frame;
-
-    // Check if there is a message in Rx FIFO 0
-    if (rx0_count > 0) {
-        HAL_CAN_GetRxMessage(&hcan1, CAN_RX_FIFO0, &rx_frame.Rx_header, rx_frame.data);
-        // Put in Rx queue
-        xQueueSendToBack(CAN_RxQueue, &rx_frame, 0);
-    }
-
-    // Check if there is a message in Rx FIFO 1
-    if (rx1_count > 0) {
-        HAL_CAN_GetRxMessage(&hcan1, CAN_RX_FIFO1, &rx_frame.Rx_header, rx_frame.data);
-        // Put in Rx queue
-        xQueueSendToBack(CAN_RxQueue, &rx_frame, 0);
-    }
+    HAL_CAN_GetRxMessage(&hcan1, CAN_RX_FIFO0, &rx_frame.Rx_header, rx_frame.data);
+    // Put in Rx queue
+    xQueueSendToBack(CAN_RxQueue, &rx_frame, 0);
 }
 
 /**
@@ -67,22 +52,17 @@ void CANTxFromQueue() {
         return;
     }
 
-    // Find a free mailbox
-    uint32_t mailbox = HAL_CAN_GetTxMailboxesFreeLevel(&hcan1);
-
-    // Return early if there are no free mailboxes
-    if (mailbox == 0) {
+    // Ensure that CAN peripheral is ready to transmit
+    if (HAL_CAN_GetTxMailboxesFreeLevel(&hcan1) == 0) {
         return;
     }
 
     CAN_Queue_Frame_t tx_frame;
+    uint32_t mailbox;
 
     // Get message from Tx queue
     xQueueReceive(CAN_TxQueue, &tx_frame, 0);
-    if (HAL_CAN_AddTxMessage(&hcan1, &tx_frame.Tx_header, tx_frame.data, &mailbox) != HAL_OK) {
-        // Put message back in queue if transmission failed
-        xQueueSendToBack(CAN_TxQueue, &tx_frame, 0);
-    }
+    HAL_CAN_AddTxMessage(&hcan1, &tx_frame.Tx_header, tx_frame.data, &mailbox);
 }
 
 void CAN_CommunicationTask() {
@@ -130,9 +110,7 @@ void CANInterpretRx() {
     xQueueReceive(CAN_RxQueue, &rx_frame, 0);
 
     // TODO: Parse message using CAN parser functions
-    if (rx_frame.Rx_header.StdId == 1) {
-        BSP_LED_Toggle(LED_BLUE); // Blink blue LED on reception of CAN message with ID 1
-    }
+    BSP_LED_Toggle(LED_GREEN);  // Blink green LED on reception of CAN message
 }
 
 void CAN_InterpretTask() {
@@ -146,18 +124,31 @@ void CAN_InterpretTask() {
     }
 }
 
+// ===================== CAN Test Task Functions =====================
+uint16_t rand(uint16_t max) {
+    static uint32_t seed = 1;
+    uint32_t a = 16807;
+    uint32_t m = 2147483647;
+    seed = (a * seed) % m;
+    return seed % max;
+}
+
 void CAN_TestSend() {
     // Interval for CAN send task
     const TickType_t interval = CAN_TEST_SEND_MS / portTICK_PERIOD_MS;
     static TickType_t last = 0;
 
     // Data to send
-    uint8_t data[8] = {0};
+    uint8_t data[8];
+    for (int i = 0; i < 8; i++) {
+        data[i] = rand(0xff);
+    }
     // CAN ID to send
-    uint32_t id = 1;
+    uint32_t id = rand(0x7ff);
 
     if ((xTaskGetTickCount() - last) >= interval) {
         CAN_Transmit(id, data, sizeof(data), false);
+        BSP_LED_Toggle(LED_BLUE);  // Blink blue LED on CAN message send
         last = xTaskGetTickCount();
     }
 }

@@ -135,9 +135,5 @@ void PLC_Configure() {
     } else {
         BSP_LED_On(LED_RED);
         BSP_LED_Off(LED_GREEN);
-        for (;;) {
-            BSP_LED_Toggle(LED_BLUE);  // Blink blue LED to indicate PLC error
-            HAL_Delay(250);
-        }
     }
 }

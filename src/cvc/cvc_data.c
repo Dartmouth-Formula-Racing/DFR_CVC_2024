@@ -64,17 +64,3 @@ CVC_data_t CVC_GetData(CVC_data_id_t id) {
     xSemaphoreGive(CVC_DataMutex);
     return temp;
 }
-
-void CVC_TestSetGetData(void) {
-    // Received current reading from inverter, range is -3276.8 to 3276.7 amps encoded as a signed integer
-    static int32_t current = -32768;
-    float current_float = 0;
-    CVC_SetData(CVC_RANDOM, &current, sizeof(current) * 8, INT_10);
-    // Read CVC_data[CVC_RANDOM] and convert to float
-    current_float = CVC_DataToFloat(CVC_RANDOM);
-    printf("Current: %f\n", current_float);
-    current += 100;
-    if (current > 32767) {
-        current = -32768;
-    }
-}
