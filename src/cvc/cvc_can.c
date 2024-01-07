@@ -12,6 +12,7 @@
 #include <stdbool.h>
 #include <stm32f7xx_hal_can.h>
 #include <stm32f7xx_nucleo_144.h>
+#include <main.h>
 
 extern CAN_HandleTypeDef hcan1;
 QueueHandle_t CAN_TxQueue;
@@ -31,7 +32,7 @@ void CAN_Configure() {
  */
 void CANRxToQueue() {
     // Return early if no messages have been received
-    if (HAL_CAN_GetRxFifoFillLevel(&hcan1, CAN_RX_FIFO0)) {
+    if (HAL_CAN_GetRxFifoFillLevel(&hcan1, CAN_RX_FIFO0) == 0) {
         return;
     }
 
@@ -109,8 +110,7 @@ void CANInterpretRx() {
     // Get message from Rx queue
     xQueueReceive(CAN_RxQueue, &rx_frame, 0);
 
-    // TODO: Parse message using CAN parser functions
-    BSP_LED_Toggle(LED_GREEN);  // Blink green LED on reception of CAN message
+    HAL_GPIO_WritePin(LD1_GPIO_Port, LD1_Pin, (GPIO_PinState)rx_frame.data[0]);
 }
 
 void CAN_InterpretTask() {
@@ -137,18 +137,21 @@ void CAN_TestSend() {
     // Interval for CAN send task
     const TickType_t interval = CAN_TEST_SEND_MS / portTICK_PERIOD_MS;
     static TickType_t last = 0;
+    static bool led_state = 0;
 
     // Data to send
     uint8_t data[8];
-    for (int i = 0; i < 8; i++) {
-        data[i] = rand(0xff);
-    }
+
     // CAN ID to send
     uint32_t id = rand(0x7ff);
 
     if ((xTaskGetTickCount() - last) >= interval) {
+        led_state = !led_state;
+        for (uint8_t i = 0; i < 8; i++) {
+            data[i] = (uint8_t)led_state;
+        }
         CAN_Transmit(id, data, sizeof(data), false);
-        BSP_LED_Toggle(LED_BLUE);  // Blink blue LED on CAN message send
+        HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, led_state);
         last = xTaskGetTickCount();
     }
 }

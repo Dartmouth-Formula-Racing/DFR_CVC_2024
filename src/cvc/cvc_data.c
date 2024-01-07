@@ -39,16 +39,16 @@ int32_t CVC_DataToInt(CVC_data_id_t id) {
 
 void CVC_SetData(CVC_data_id_t id, void *data, uint8_t len, type_t type) {
     uint64_t temp = 0;
-    if (len == 8) {
+    if (len <= 8) {
         temp = *(uint8_t *)data;
     }
-    if (len == 16) {
+    if (len <= 16) {
         temp = *(uint16_t *)data;
     }
-    if (len == 32) {
+    if (len <= 32) {
         temp = *(uint32_t *)data;
     }
-    if (len == 64) {
+    if (len <= 64) {
         temp = *(uint64_t *)data;
     }
     xSemaphoreTake(CVC_DataMutex, portMAX_DELAY);

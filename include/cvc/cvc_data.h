@@ -22,7 +22,7 @@ extern SemaphoreHandle_t CVC_DataMutex;
 typedef enum {
     PLC_OUTPUTS = 0,
     PLC_INPUTS,
-    CVC_RANDOM, // Random number for testing
+    LED_STATE,
     NUM_VALUES,
 } CVC_data_id_t;
 
