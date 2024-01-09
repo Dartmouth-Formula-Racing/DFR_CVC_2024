@@ -19,10 +19,83 @@ extern SemaphoreHandle_t CVC_DataMutex;
 
 // Allows using names instead of indexes for CVC data
 // Counts from 0
+// Yes this is incredibly inefficient but this
+// only uses a fraction of our available memory.
 typedef enum {
-    PLC_OUTPUTS = 0,
+    // === EMUS BMS ===
+    // Overall Parameters
+    BMS_IGNITION,
+    BMS_CHARGER_MAINS,
+    BMS_FAST_CHARGE,
+    BMS_LEAKAGE_DETECTED,
+    BMS_CHARGER_ENABLED,
+    BMS_HEATER_ENABLED,
+    BMS_BATTERY_CONTACTOR,
+    BMS_BATTERY_FAN,
+    BMS_POWER_REDUCTION,
+    BMS_CHARGING_INTERLOCK,
+    BMS_DCDC_ENABLED,
+    BMS_CONTACTOR_PRECHARGE,
+    BMS_CHARGING_STATE,
+    BMS_CHARGING_DURATION,
+    BMS_LAST_CHARGING_ERROR,
+    BMS_LIVE_CELL_COUNT,
+    // Diagnostic Codes
+    BMS_UNDERVOLTAGE,
+    BMS_OVERVOLTAGE,
+    BMS_DISCHARGE_OVERCURRENT,
+    BMS_CHARGE_OVERCURRENT,
+    BMS_CELL_MODULE_OVERHEAT,
+    BMS_LEAKAGE,
+    BMS_NO_CELL_COMMUNICATION,
+    BMS_WARN_LOW_CELL_VOLTAGE,
+    BMS_WARN_HIGH_DISCHARGE_CURRENT,
+    BMS_WARN_HIGH_CELL_MODULE_TEMP,
+    BMS_CELL_OVERHEAT,
+    BMS_NO_CURRENT_SENSOR,
+    BMS_PACK_UNDERVOLTAGE,
+    BMS_CELL_VOLTAGE_VALID,
+    BMS_CELL_MODULE_TEMP_VALID,
+    BMS_BALANCE_RATE_VALID,
+    BMS_LIVE_CELL_COUNT_VALID,
+    BMS_CHARGING_FINISHED,
+    BMS_CELL_TEMP_VALID,
+    // Battery Voltage Overall Parameters
+    BMS_MIN_CELL_VOLTAGE,
+    BMS_MAX_CELL_VOLTAGE,
+    BMS_AVG_CELL_VOLTAGE,
+    BMS_TOTAL_VOLTAGE,
+    // Cell Module Temperature Overall Parameters
+    BMS_MIN_CELL_MODULE_TEMP,
+    BMS_MAX_CELL_MODULE_TEMP,
+    BMS_AVG_CELL_MODULE_TEMP,
+    // Cell Module Temperature Overall Parameters
+    BMS_MIN_CELL_TEMP,
+    BMS_MAX_CELL_TEMP,
+    BMS_AVG_CELL_TEMP,
+    // Cell Balancing Rate Overall Parameters
+    BMS_MIN_BALANCE_RATE,
+    BMS_MAX_BALANCE_RATE,
+    BMS_AVG_BALANCE_RATE,
+    // State of Charge Parameters
+    BMS_CURRENT,
+    BMS_ESTIMATED_CHARGE,
+    BMS_ESTIMATED_SOC,
+    // Configuration Parameters - TODO: Figure out how to handle this
+    // Contactor Control
+    BMS_CONTACTOR_STATE,
+    // Energy Parameters
+    BMS_ESTIMATED_CONSUMPTION,
+    BMS_ESTIMATED_ENERGY,
+    BMS_ESTIMATED_DISTANCE_REMAINING,
+    BMS_DISTANCE_TRAVELED,
+    // Events - TODO: Figure out how to handle this
+    // === PLC ===
+    PLC_OUTPUTS,
     PLC_INPUTS,
     LED_STATE,
+    // === Length of CVC data array ===
+    // This must be the last value in the enum
     NUM_VALUES,
 } CVC_data_id_t;
 

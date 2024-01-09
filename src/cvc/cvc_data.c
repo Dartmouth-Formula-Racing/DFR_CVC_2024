@@ -24,7 +24,7 @@ float CVC_DataToFloat(CVC_data_id_t id) {
     if (temp.type == FLOAT) {
         return (float)temp.data;
     }
-    return 0;
+    return (float)0;
 }
 
 uint64_t CVC_DataToUint(CVC_data_id_t id) {
@@ -37,18 +37,18 @@ int32_t CVC_DataToInt(CVC_data_id_t id) {
     return (int32_t)temp.data;
 }
 
-void CVC_SetData(CVC_data_id_t id, void *data, uint8_t len, type_t type) {
+void CVC_SetData(CVC_data_id_t id, void *data, uint8_t size, type_t type) {
     uint64_t temp = 0;
-    if (len <= 8) {
+    if (size <= 8) {
         temp = *(uint8_t *)data;
     }
-    if (len <= 16) {
+    if (size <= 16) {
         temp = *(uint16_t *)data;
     }
-    if (len <= 32) {
+    if (size <= 32) {
         temp = *(uint32_t *)data;
     }
-    if (len <= 64) {
+    if (size <= 64) {
         temp = *(uint64_t *)data;
     }
     xSemaphoreTake(CVC_DataMutex, portMAX_DELAY);

@@ -31,8 +31,6 @@ void CommunicationProcessing(void *argument) {
 
 void Control(void *argument) {
 	for (;;) {
-		// PLC_BlinkTask();
-		CAN_TestSend();
 		taskYIELD();
 	}
 }

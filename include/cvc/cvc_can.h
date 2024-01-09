@@ -16,7 +16,10 @@
 #define CAN_QUEUE_LENGTH 10 // Length of CAN Tx queue
 #define CAN_PERIPHERAL_MS 1 // 1 ms, 1000 Hz
 #define CAN_PROCESSING_MS 1 // 1 ms, 1000 Hz
-#define CAN_TEST_SEND_MS 500 // 500 ms, 2 Hz
+
+#define CAN_EMUS_USE_EXT 1 // 1 if using extended IDs, 0 if using standard IDs
+#define CAN_EMUS_BASE_29 0x19B5 // Base ID for EMUS BMS 29-bit IDs
+#define CAN_EMUS_BASE_11 0x00 // Base ID for EMUS BMS 11-bit IDs
 
 // CAN Tx and Rx queues
 extern QueueHandle_t CAN_TxQueue;
@@ -65,11 +68,86 @@ void CAN_Transmit(uint32_t id, uint8_t data[8], uint8_t len, bool isExt);
  */
 void CAN_InterpretTask(void);
 
-/**
- * @brief Function for testing CAN communication.
- * @param None
- * @retval None 
- */
-void CAN_TestSend(void);
+// ========================= CAN Parsing Functions =========================
 
+// TODO: Implement 11-bit CAN message parsing functions
+// Only 29-bit CAN message parsing functions are currently implemented
+// ========== EMUS BMS Parsing Functions ==========
+
+/**
+ * @brief Parses EMUS BMS 29-bit Overall Parameters CAN message.
+ * @param uint8_t data[8]: Array of 8 bytes of data to be parsed
+ * @retval None
+ */
+void CAN_Parse_EMUS_OverallParameters(CAN_Queue_Frame_t frame);
+
+/**
+ * @brief Parses EMUS BMS 29-bit Diagnostic Codes CAN message.
+ * @param uint8_t data[8]: Array of 8 bytes of data to be parsed
+ * @retval None
+ */
+void CAN_Parse_EMUS_DiagnosticCodes(CAN_Queue_Frame_t frame);
+
+/**
+ * @brief Parses EMUS BMS 29-bit Battery Voltage Overall Parameters CAN message.
+ * @param uint8_t data[8]: Array of 8 bytes of data to be parsed
+ * @retval None
+ */
+void CAN_Parse_EMUS_BatteryVoltageOverallParameters(CAN_Queue_Frame_t frame);
+
+/**
+ * @brief Parses EMUS BMS 29-bit Cell Module Temperature Overall Parameters CAN message.
+ * @param uint8_t data[8]: Array of 8 bytes of data to be parsed
+ * @retval None
+ */
+void CAN_Parse_EMUS_CellModuleTemperatureOverallParameters(CAN_Queue_Frame_t frame);
+
+/**
+ * @brief Parses EMUS BMS 29-bit Cell Temperature Overall Parameters CAN message.
+ * @param uint8_t data[8]: Array of 8 bytes of data to be parsed
+ * @retval None
+ */
+void CAN_Parse_EMUS_CellTemperatureOverallParameters(CAN_Queue_Frame_t frame);
+
+/**
+ * @brief Parses EMUS BMS 29-bit Cell Balancing Rate Overall Parameters CAN message.
+ * @param uint8_t data[8]: Array of 8 bytes of data to be parsed
+ * @retval None
+ */
+void CAN_Parse_EMUS_CellBalancingRateOverallParameters(CAN_Queue_Frame_t frame);
+
+/**
+ * @brief Parses EMUS BMS 29-bit State of Charge Parameters CAN message.
+ * @param uint8_t data[8]: Array of 8 bytes of data to be parsed
+ * @retval None
+ */
+void CAN_Parse_EMUS_StateOfChargeParameters(CAN_Queue_Frame_t frame);
+
+/**
+ * @brief Parses EMUS BMS 29-bit Configuration Parameters CAN message.
+ * @param uint8_t data[8]: Array of 8 bytes of data to be parsed
+ * @retval None
+ */
+void CAN_Parse_EMUS_ConfigurationParameters(CAN_Queue_Frame_t frame);
+
+/**
+ * @brief Parses EMUS BMS 29-bit Contactor Control CAN message.
+ * @param uint8_t data[8]: Array of 8 bytes of data to be parsed
+ * @retval None
+ */
+void CAN_Parse_EMUS_ContactorControl(CAN_Queue_Frame_t frame);
+
+/**
+ * @brief Parses EMUS BMS 29-bit Energy Parameters CAN message.
+ * @param uint8_t data[8]: Array of 8 bytes of data to be parsed
+ * @retval None
+ */
+void CAN_Parse_EMUS_EnergyParameters(CAN_Queue_Frame_t frame);
+
+/**
+ * @brief Parses EMUS BMS 29-bit Events CAN message.
+ * @param uint8_t data[8]: Array of 8 bytes of data to be parsed
+ * @retval None
+ */
+void CAN_Parse_EMUS_Events(CAN_Queue_Frame_t frame);
 #endif /* INC_CVC_CAN_H_ */

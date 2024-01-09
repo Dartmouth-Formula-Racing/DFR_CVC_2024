@@ -82,8 +82,6 @@ void PLC_CommunicationTask() {
     const TickType_t interval = 40 / portTICK_PERIOD_MS;
     static TickType_t last = 0;
 
-    uint8_t* relay_status;
-
     if ((xTaskGetTickCount() - last) >= interval) {
         // Critical section - prevent context switch while transmitting
         taskENTER_CRITICAL();
@@ -96,7 +94,7 @@ void PLC_CommunicationTask() {
         taskENTER_CRITICAL();
         BSP_RELAY_EN_Out();
         uint8_t outputs = PLC_Encode(PLC_Outputs);
-        relay_status = BSP_RELAY_SetOutputs(&outputs);
+        BSP_RELAY_SetOutputs(&outputs);
         taskEXIT_CRITICAL();
 
         last = xTaskGetTickCount();
@@ -105,9 +103,9 @@ void PLC_CommunicationTask() {
 
 void PLC_Configure() {
     // Initialize PLC outputs
-    RELAY_StatusTypeDef relayStatus = BSP_Relay_Init();
+    BSP_Relay_Init();
     // Initialize PLC inputs
-    CURRENT_LIMITER_StatusTypeDef currentLimiterStatus = BSP_CurrentLimiter_Init();
+    BSP_CurrentLimiter_Init();
     // Reset PLC outputs
     BSP_RELAY_Reset();
     HAL_Delay(100);
