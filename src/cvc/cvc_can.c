@@ -176,6 +176,51 @@ void CAN_InterpretTask() {
     }
 }
 
+
+// ========================= CAN Test Functions =========================
+/**
+ * @brief Generates a random 32-bit integer between 0 and max.
+ * @param max 
+ * @return uint32_t 
+ */
+uint32_t rand(uint32_t max) {
+    static uint64_t seed = 1;
+    uint64_t a = 16807;
+    uint64_t m = 2147483647;
+    seed = (a * seed) % m;
+    return (uint32_t)(seed % max);
+}
+
+/**
+ * @brief Sends random CAN messages for testing purposes.
+ * @param None
+ * @retval None 
+ */
+void CAN_TestSend() {
+    static uint32_t last = 0;
+    if ((xTaskGetTickCount() - last) < CAN_TEST_SEND_INTERVAL_MS / portTICK_PERIOD_MS) {
+        return;
+    }
+    
+    CAN_Queue_Frame_t tx_frame;
+    #if CAN_TEST_USE_EXT
+    tx_frame.Tx_header.StdId = 0x0000;
+    tx_frame.Tx_header.ExtId = rand(CAN_TEST_MAX_ID_EXT);
+    tx_frame.Tx_header.IDE = CAN_ID_EXT;
+    #else
+    tx_frame.Tx_header.StdId = rand(CAN_TEST_MAX_ID_STD);
+    tx_frame.Tx_header.ExtId = 0x0000;
+    tx_frame.Tx_header.IDE = CAN_ID_STD;
+    #endif
+    tx_frame.Tx_header.RTR = CAN_RTR_DATA;
+    tx_frame.Tx_header.DLC = 8;
+    for (int i = 0; i < 8; i++) {
+        tx_frame.data[i] = rand(CAN_TEST_MAX_DATA);
+    }
+    xQueueSendToBack(CAN_TxQueue, &tx_frame, 0);
+    last = xTaskGetTickCount();
+}
+
 // ========================= CAN Parsing Functions =========================
 
 // TODO: Implement 11-bit CAN message parsing functions

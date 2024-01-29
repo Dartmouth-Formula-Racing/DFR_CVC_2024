@@ -21,6 +21,14 @@
 #define CAN_EMUS_BASE_29 0x19B5 // Base ID for EMUS BMS 29-bit IDs
 #define CAN_EMUS_BASE_11 0x00 // Base ID for EMUS BMS 11-bit IDs
 
+// CAN Testing Settings
+#define CAN_TEST_USE_EXT 1 // 1 if using extended IDs, 0 if using standard IDs
+#define CAN_TEST_SEND_INTERVAL_MS 200 // 200 ms, 5 Hz
+#define CAN_TEST_MAX_ID 0x7FF // Max ID for 11-bit IDs
+#define CAN_TEST_MAX_ID_EXT 0x1FFFFFFF // Max ID for 29-bit IDs
+#define CAN_TEST_MAX_DATA 0xFF // Max data value for byte of data
+
+
 // CAN Tx and Rx queues
 extern QueueHandle_t CAN_TxQueue;
 extern QueueHandle_t CAN_RxQueue;
@@ -67,6 +75,15 @@ void CAN_Transmit(uint32_t id, uint8_t data[8], uint8_t len, bool isExt);
  * @retval None 
  */
 void CAN_InterpretTask(void);
+
+
+// ========================= CAN Test Functions =========================
+/**
+ * @brief Sends random CAN messages for testing purposes.
+ * @param None
+ * @retval None 
+ */
+void CAN_TestSend(void);
 
 // ========================= CAN Parsing Functions =========================
 

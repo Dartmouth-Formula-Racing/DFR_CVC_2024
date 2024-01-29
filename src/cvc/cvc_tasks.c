@@ -31,6 +31,7 @@ void CommunicationProcessing(void *argument) {
 
 void Control(void *argument) {
 	for (;;) {
+		CAN_TestSend();
 		taskYIELD();
 	}
 }
