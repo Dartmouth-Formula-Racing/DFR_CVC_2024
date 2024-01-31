@@ -89,6 +89,31 @@ typedef enum {
     BMS_ESTIMATED_ENERGY,
     BMS_ESTIMATED_DISTANCE_REMAINING,
     BMS_DISTANCE_TRAVELED,
+    // === AEM 30-22O6 VDM ===
+    // GPS Data
+    VDM_GPS_LATITUDE, 
+    VDM_GPS_LONGITUDE, 
+    VDM_GPS_SPEED,
+    VDM_GPS_ALTITUDE, 
+    VDM_GPS_TRUE_COURSE, 
+    VDM_GPS_SATELLITES_IN_USE, 
+    VDM_GPS_DATA_VALID,
+    // GPS Date Time Parameters
+    VDM_GPS_DATE_TIME_VALID, 
+    VDM_UTC_YEAR, 
+    VDM_UTC_MONTH,
+    VDM_UTC_DAY,
+    VDM_UTC_HOUR,
+    VDM_UTC_MINUTE,
+    VDM_UTC_SECOND, 
+    // Acceleration data
+    VDM_ACCELERATION_X,
+    VDM_ACCELERATION_Y,
+    VDM_ACCELERATION_Z,
+    // Yaw rate Data
+    VDM_YAW_RATE_X,
+    VDM_YAW_RATE_Y,
+    VDM_YAW_RATE_Z,
     // Events - TODO: Figure out how to handle this
     // === PLC ===
     PLC_OUTPUTS,
