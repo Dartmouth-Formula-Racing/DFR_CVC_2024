@@ -570,7 +570,7 @@ void CAN_Parse_VDM_GPSData(CAN_Queue_Frame_t frame) {
     CVC_data[VDM_GPS_SPEED].type = UINT;
     // Byte 2, 3: GPS Altitude
     CVC_data[VDM_GPS_ALTITUDE].data = (frame.data[2] << 8) | frame.data[3];
-    CVC_data[VDM_GPS_ALTITUDE].type = UINT;
+    CVC_data[VDM_GPS_ALTITUDE].type = INT;
     // Byte 4, 5: GPS True Course
     CVC_data[VDM_GPS_TRUE_COURSE].data = (frame.data[4] << 8) | frame.data[5];
     CVC_data[VDM_GPS_TRUE_COURSE].type = UINT;
