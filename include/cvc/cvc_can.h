@@ -21,6 +21,9 @@
 #define CAN_EMUS_BASE_29 0x19B5 // Base ID for EMUS BMS 29-bit IDs
 #define CAN_EMUS_BASE_11 0x00 // Base ID for EMUS BMS 11-bit IDs
 
+#define CAN_VDM_USE_EXT 1 // 1 if using extended IDs, 0 if using standard IDs
+#define CAN_VDM_BASE_29 0x0000A // Base ID for VDM 29-bit IDs
+
 #define CAN_INVERTER_USE_EXT 1 // 1 if using extended IDs, 0 if using standard IDs
 #define CAN_INVERTER_BASE_ID1 0x0A0 // Base ID for Inverter1 29-bit IDs
 #define CAN_INVERTER_BASE_ID2 0x0B0 // Base ID for Inverter2 29-bit IDs
@@ -156,6 +159,44 @@ void CAN_Parse_EMUS_EnergyParameters(CAN_Queue_Frame_t frame);
 void CAN_Parse_EMUS_Events(CAN_Queue_Frame_t frame);
 
 /**
+ * @brief Parses VDM GPS Latitude and Longitude 29-bit CAN message (0x0000A0000).
+ * @param CAN_Queue_Frame_t frame: A CAN frame containing 8 bytes of data to be parsed.
+ * @retval None
+ */
+
+void CAN_Parse_VDM_GPSLatitudeLongitude(CAN_Queue_Frame_t frame);
+
+/**
+ * @brief Parses VDM GPS data including speed, altitude, true course, satellites in use, and GPS validity (0x0000A0001).
+ * @param CAN_Queue_Frame_t frame: A CAN frame containing 8 bytes of data to be parsed.
+ * @retval None
+ */
+
+void CAN_Parse_VDM_GPSData(CAN_Queue_Frame_t frame);
+
+/**
+ * @brief Parses VDM GPS date and time information (0x0000A0002).
+ * @param CAN_Queue_Frame_t frame: A CAN frame containing 8 bytes of data to be parsed.
+ * @retval None
+ */
+
+void CAN_Parse_VDM_GPSDateTime(CAN_Queue_Frame_t frame);
+
+/**
+ * @brief Parses acceleration data for the X, Y, and Z axes (0x0000A0003).
+ * @param CAN_Queue_Frame_t frame: A CAN frame containing bytes of acceleration data.
+ * @retval None
+ */
+void CAN_Parse_VDM_AccelerationData(CAN_Queue_Frame_t frame);
+
+/**
+ * @brief Parses yaw rate data for the X, Y, and Z axes (0x0000A0004).
+ * @param CAN_Queue_Frame_t frame: A CAN frame containing bytes of yaw rate data.
+ * @retval None
+ */
+void CAN_Parse_VDM_YawRateData(CAN_Queue_Frame_t frame);
+
+/**
  * @brief Parses Inverter 29-bit Temperatures #1 CAN message. (0x0A0)
  * @param uint8_t data[8]: Array of 8 bytes of data to be parsed
  * @retval None
@@ -250,8 +291,6 @@ void CAN_Parse_Inverter_FaultCodes(CAN_Queue_Frame_t frame,	bool isFirstInverter
  */
 
 void CAN_Parse_Inverter_HighSpeedParameters(CAN_Queue_Frame_t frame, bool isFirstInverter);
-
-
 
 
 #endif /* INC_CVC_CAN_H_ */

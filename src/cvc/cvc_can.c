@@ -155,6 +155,21 @@ void CANInterpretRx() {
         } else if (rx_frame.Rx_header.ExtId == ((CAN_EMUS_BASE_29 << 16) | 0x0405)) {
             // EMUS BMS Events - Byte 3 = 0x04 and Byte 4 = 0x05
             CAN_Parse_EMUS_Events(rx_frame);
+        } else if (rx_frame.Rx_header.ExtId == ((CAN_VDM_BASE_29 << 16) | 0X0000)){
+            // VDM GPS Latitude and Longitude - 0x0000A0000
+            CAN_Parse_VDM_GPSLatitudeLongitude(rx_frame);
+        } else if (rx_frame.Rx_header.ExtId == ((CAN_VDM_BASE_29 << 16) | 0X0001)){
+            // VDM GPS Data - 0x0000A0001
+            CAN_Parse_VDM_GPSData(rx_frame);
+        } else if (rx_frame.Rx_header.ExtId == ((CAN_VDM_BASE_29 << 16) | 0X0002)){
+            // VDM GPS Date and Time - 0x0000A0002
+            CAN_Parse_VDM_GPSDateTime(rx_frame);
+        } else if (rx_frame.Rx_header.ExtId == ((CAN_VDM_BASE_29 << 16) | 0X0003)){
+            // VDM Acceleration Data - 0x0000A0003
+            CAN_Parse_VDM_AccelerationData(rx_frame);
+        } else if (rx_frame.Rx_header.ExtId == ((CAN_VDM_BASE_29 << 16) | 0X0004)){
+            // VDM Yaw Rate Data - 0x0000A0004
+            CAN_Parse_VDM_YawRateData(rx_frame);
         }
         // ===== PM100DX Inverter1 CAN IDs =====
         if (rx_frame.Rx_header.ExtId == ((CAN_INVERTER_BASE_ID1 << 16) | 0x0A0)) {
@@ -602,11 +617,27 @@ void CAN_Parse_EMUS_Events(CAN_Queue_Frame_t frame) {
 }
 
 /**
+ * @brief Parses VDM GPS Latitude and Longitude 29-bit CAN message (0x0000A0000).
+ * @param CAN_Queue_Frame_t frame: A CAN frame containing 8 bytes of data to be parsed.
+ * @retval None
+ */
+
+void CAN_Parse_VDM_GPSLatitudeLongitude(CAN_Queue_Frame_t frame) {
+    xSemaphoreTake(CVC_DataMutex, portMAX_DELAY);
+    // Byte 0-3: GPS Latitude 
+    CVC_data[VDM_GPS_LATITUDE].data = (frame.data[0] << 24) | (frame.data[1] << 16) | (frame.data[2] << 8) | frame.data[3];
+    CVC_data[VDM_GPS_LATITUDE].type = FLOAT;
+    // Byte 4-7: GPS Longitude
+    CVC_data[VDM_GPS_LONGITUDE].data = (frame.data[0] << 24) | (frame.data[1] << 16) | (frame.data[2] << 8) | frame.data[3];
+    CVC_data[VDM_GPS_LONGITUDE].type = FLOAT;
+    xSemaphoreGive(CVC_DataMutex);
+}
+
+/**
  * @brief Parses Inverter 29-bit Temperatures #1 CAN message. (0x0A0)
  * @param uint8_t data[8]: Array of 8 bytes of data to be parsed
  * @retval None
  */
-
 void CAN_Parse_Inverter_Temp1(CAN_Queue_Frame_t frame, bool isFirstInverter) {
     xSemaphoreTake(CVC_DataMutex, portMAX_DELAY);
     if (isFirstInverter) {
@@ -636,6 +667,32 @@ void CAN_Parse_Inverter_Temp1(CAN_Queue_Frame_t frame, bool isFirstInverter) {
         CVC_data[INVERTER2_GATE_DRIVER_BOARD_TEMP].data = (frame.data[6]<<8) | frame.data[7];
         CVC_data[INVERTER2_GATE_DRIVER_BOARD_TEMP].type = INT;
     }
+    xSemaphoreGive(CVC_DataMutex);
+}
+
+/**
+ * @brief Parses VDM GPS data including speed, altitude, true course, satellites in use, and GPS validity (0x0000A0001).
+ * @param CAN_Queue_Frame_t frame: A CAN frame containing 8 bytes of data to be parsed.
+ * @retval None
+ */
+
+void CAN_Parse_VDM_GPSData(CAN_Queue_Frame_t frame) {
+    xSemaphoreTake(CVC_DataMutex, portMAX_DELAY);
+    // Byte 0,1: GPS Speed
+    CVC_data[VDM_GPS_SPEED].data = (frame.data[0] << 8) | frame.data[1];
+    CVC_data[VDM_GPS_SPEED].type = UINT;
+    // Byte 2, 3: GPS Altitude
+    CVC_data[VDM_GPS_ALTITUDE].data = (frame.data[2] << 8) | frame.data[3];
+    CVC_data[VDM_GPS_ALTITUDE].type = INT;
+    // Byte 4, 5: GPS True Course
+    CVC_data[VDM_GPS_TRUE_COURSE].data = (frame.data[4] << 8) | frame.data[5];
+    CVC_data[VDM_GPS_TRUE_COURSE].type = UINT;
+    // Byte 6: Satellites in use
+    CVC_data[VDM_GPS_SATELLITES_IN_USE].data = frame.data[6];
+    CVC_data[VDM_GPS_SATELLITES_IN_USE].type = UINT;
+    // Byte 7: GPS Validity
+    CVC_data[VDM_GPS_DATA_VALID].data = frame.data[7];
+    CVC_data[VDM_GPS_DATA_VALID].type = UINT;
     xSemaphoreGive(CVC_DataMutex);
 }
 
@@ -676,6 +733,7 @@ void CAN_Parse_Inverter_Temp2(CAN_Queue_Frame_t frame, bool isFirstInverter) {
     }
     xSemaphoreGive(CVC_DataMutex);
 }
+
 /**
  * @brief Parses Inverter 29-bit Temperatures #3 & Torque Shudder CAN message. (0x0A2)
  * @param uint8_t data[8]: Array of 8 bytes of data to be parsed
@@ -925,6 +983,38 @@ void CAN_Parse_Inverter_FluxParameters(CAN_Queue_Frame_t frame, bool isFirstInve
 }
 
 /**
+ * @brief Parses VDM GPS date and time information (0x0000A0002).
+ * @param CAN_Queue_Frame_t frame: A CAN frame containing 8 bytes of data to be parsed.
+ * @retval None
+ */
+
+void CAN_Parse_VDM_GPSDateTime(CAN_Queue_Frame_t frame) {
+    xSemaphoreTake(CVC_DataMutex, portMAX_DELAY);
+    // Byte 0: GPS Validity
+    CVC_data[VDM_GPS_DATE_TIME_VALID].data = frame.data[0];
+    CVC_data[VDM_GPS_DATE_TIME_VALID].type = UINT;
+    // Byte 1: UTC Year
+    CVC_data[VDM_UTC_YEAR].data = frame.data[1];
+    CVC_data[VDM_UTC_YEAR].type = UINT;
+    // Byte 2: UTC Month
+    CVC_data[VDM_UTC_MONTH].data = frame.data[2];
+    CVC_data[VDM_UTC_MONTH].type = UINT;
+    // Byte 3: UTC Day
+    CVC_data[VDM_UTC_DAY].data = frame.data[3];
+    CVC_data[VDM_UTC_DAY].type = UINT;
+    // Byte 5: UTC Hour
+    CVC_data[VDM_UTC_HOUR].data = frame.data[5];
+    CVC_data[VDM_UTC_HOUR].type = UINT;
+    // Byte 6: UTC Minute
+    CVC_data[VDM_UTC_MINUTE].data = frame.data[6];
+    CVC_data[VDM_UTC_MINUTE].type = UINT;
+    // Byte 7: UTC Second
+    CVC_data[VDM_UTC_SECOND].data = frame.data[7];
+    CVC_data[VDM_UTC_SECOND].type = UINT;
+    xSemaphoreGive(CVC_DataMutex);
+}
+
+/**
  * @brief Parses Inverter 29-bit Internal Voltage Paramaters CAN message. (0x0A9)
  * @param uint8_t data[8]: Array of 8 bytes of data to be parsed
  * @retval None
@@ -959,6 +1049,44 @@ void CAN_Parse_Inverter_InternalVoltageParameters(CAN_Queue_Frame_t frame, bool 
         CVC_data[INVERTER2_12_0_REFERENCE_VOLTAGE].data = (frame.data[6]<<8) | frame.data[7];
         CVC_data[INVERTER2_12_0_REFERENCE_VOLTAGE].type = INT;
     }
+    xSemaphoreGive(CVC_DataMutex);
+}
+
+/**
+ * @brief Parses acceleration data for the X, Y, and Z axes (0x0000A0003).
+ * @param CAN_Queue_Frame_t frame: A CAN frame containing bytes of acceleration data.
+ * @retval None
+ */
+void CAN_Parse_VDM_AccelerationData(CAN_Queue_Frame_t frame) {
+    xSemaphoreTake(CVC_DataMutex, portMAX_DELAY);
+    // Byte 0, 1: X-Axis Acceleration
+    CVC_data[VDM_ACCELERATION_X].data = (frame.data[0] << 8) | frame.data[1];
+    CVC_data[VDM_ACCELERATION_X].type = INT;
+    // Byte 2, 3: Y-Axis Acceleration
+    CVC_data[VDM_ACCELERATION_Y].data = (frame.data[2] << 8) | frame.data[3];
+    CVC_data[VDM_ACCELERATION_Y].type = INT;
+    // Byte 4, 5: Z-Axis Acceleration
+    CVC_data[VDM_ACCELERATION_Z].data = (frame.data[4] << 8) | frame.data[5];
+    CVC_data[VDM_ACCELERATION_Z].type = INT;
+    xSemaphoreGive(CVC_DataMutex);
+}
+
+/**
+ * @brief Parses yaw rate data for the X, Y, and Z axes (0x0000A0004).
+ * @param CAN_Queue_Frame_t frame: A CAN frame containing bytes of yaw rate data.
+ * @retval None
+ */
+void CAN_Parse_VDM_YawRateData(CAN_Queue_Frame_t frame) {
+    xSemaphoreTake(CVC_DataMutex, portMAX_DELAY);
+    // Byte 0, 1: X-Axis Yaw Rate
+    CVC_data[VDM_YAW_RATE_X].data = (frame.data[0] << 8) | frame.data[1];
+    CVC_data[VDM_YAW_RATE_X].type = INT;
+    // Byte 2, 3: Y-Axis Yaw Rate
+    CVC_data[VDM_YAW_RATE_Y].data = (frame.data[2] << 8) | frame.data[3];
+    CVC_data[VDM_YAW_RATE_Y].type = INT;
+    // Byte 4, 5: Z-Axis Yaw Rate
+    CVC_data[VDM_YAW_RATE_Z].data = (frame.data[4] << 8) | frame.data[5];
+    CVC_data[VDM_YAW_RATE_Z].type = INT;
     xSemaphoreGive(CVC_DataMutex);
 }
 
