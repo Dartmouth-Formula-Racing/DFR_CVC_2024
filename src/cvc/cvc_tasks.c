@@ -8,6 +8,7 @@
 #include <cvc_tasks.h>
 #include <cvc_plc.h>
 #include <cvc_can.h>
+#include <cvc_data.h>
 #include "cmsis_os.h"
 #include "portmacro.h"
 #include "task.h"
@@ -30,7 +31,6 @@ void CommunicationProcessing(void *argument) {
 
 void Control(void *argument) {
 	for (;;) {
-		PLC_BlinkTask();
 		taskYIELD();
 	}
 }
