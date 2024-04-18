@@ -9,13 +9,6 @@
 #define INC_CVC_INIT_H_
 
 /**
- * @brief Initalizes onboard LEDs.
- * @param argument: Not used
- * @retval None
- */
-void CVC_LEDInit(void);
-
-/**
  * @brief Initializes all the necessary peripherals for the CVC.
  * @param argument: Not used
  * @retval None

@@ -12,7 +12,6 @@
 #include <queue.h>
 #include <stdbool.h>
 #include <stm32f7xx_hal_can.h>
-#include <stm32f7xx_nucleo_144.h>
 
 extern CAN_HandleTypeDef hcan1;
 QueueHandle_t CAN_TxQueue;
@@ -113,9 +112,6 @@ void CANInterpretRx() {
 
     // Get message from Rx queue
     xQueueReceive(CAN_RxQueue, &rx_frame, 0);
-
-    // Blink LED1 to indicate CAN message received
-    HAL_GPIO_TogglePin(LD1_GPIO_Port, LD1_Pin);
 
     // Select parsing function based on CAN ID
     // TODO: Find a cleaner way to do this

@@ -275,11 +275,6 @@ typedef enum {
     INVERTER2_TORQUE_FEEDBACK_HI,
     INVERTER2_MOTOR_SPEED_HI,
     INVERTER2_DC_BUS_VOLTAGE_HI,
-
-    // === PLC ===
-    PLC_OUTPUTS,
-    PLC_INPUTS,
-    LED_STATE,
     // === Length of CVC data array ===
     // This must be the last value in the enum
     NUM_VALUES,

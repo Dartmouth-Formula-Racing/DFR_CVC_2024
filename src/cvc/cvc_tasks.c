@@ -6,31 +6,28 @@
  */
 
 #include <cvc_tasks.h>
-#include <cvc_plc.h>
 #include <cvc_can.h>
 #include <cvc_data.h>
-#include "cmsis_os.h"
-#include "portmacro.h"
-#include "task.h"
-#include "stm32f7xx_nucleo_144.h"
+#include <cvc_relay.h>
+#include <cmsis_os.h>
+#include <portmacro.h>
+#include <task.h>
 
 void Communication(void *argument) {
 	for (;;) {
-		PLC_CommunicationTask();
-        CAN_CommunicationTask();
-		taskYIELD();
+        // CAN_CommunicationTask();
+		Relay_SendTask();
 	}
 }
 
 void CommunicationProcessing(void *argument) {
     for (;;) {
         CAN_InterpretTask();
-        taskYIELD();
     }
 }
 
 void Control(void *argument) {
 	for (;;) {
-		taskYIELD();
+		Relay_TestTask();
 	}
 }
