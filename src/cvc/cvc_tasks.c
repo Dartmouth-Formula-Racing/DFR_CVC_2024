@@ -6,31 +6,47 @@
  */
 
 #include <cvc_tasks.h>
-#include <cvc_plc.h>
 #include <cvc_can.h>
 #include <cvc_data.h>
+#include <cvc_relay.h>
+#include <cvc_analogs.h>
+#include <cvc_control.h>
 #include "cmsis_os.h"
 #include "portmacro.h"
 #include "task.h"
-#include "stm32f7xx_nucleo_144.h"
 
 void Communication(void *argument) {
+	static uint32_t lastWakeTime = 0;
 	for (;;) {
-		PLC_CommunicationTask();
+		volatile uint32_t currentWakeTime = lastWakeTime;
+		currentWakeTime++;
+		lastWakeTime = currentWakeTime;
         CAN_CommunicationTask();
-		taskYIELD();
+		Relay_SendTask();
+		CAN_BroadcastTask();
+		Control_TorqueCommand();
 	}
 }
 
-void CommunicationProcessing(void *argument) {
+void Data(void *argument) {
+	static uint32_t lastWakeTime = 0;
     for (;;) {
+		volatile uint32_t currentWakeTime = lastWakeTime;
+		currentWakeTime++;
+		lastWakeTime = currentWakeTime;
         CAN_InterpretTask();
-        taskYIELD();
+		Analogs_ReadThrottle();
+		Analogs_ReadVoltage();
     }
 }
 
 void Control(void *argument) {
+	static uint32_t lastWakeTime = 0;
 	for (;;) {
-		taskYIELD();
+		volatile uint32_t currentWakeTime = lastWakeTime;
+		currentWakeTime++;
+		lastWakeTime = currentWakeTime;
+		Control_ControlTask();
+		// Control_ErrorAlertTask();
 	}
 }

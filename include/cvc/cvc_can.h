@@ -17,6 +17,8 @@
 #define CAN_PERIPHERAL_MS 1 // 1 ms, 1000 Hz
 #define CAN_PROCESSING_MS 1 // 1 ms, 1000 Hz
 
+#define CAN_BROADCAST_MS 200 // 200 ms, 5 Hz
+
 #define CAN_EMUS_USE_EXT 1 // 1 if using extended IDs, 0 if using standard IDs
 #define CAN_EMUS_BASE_29 0x19B5 // Base ID for EMUS BMS 29-bit IDs
 #define CAN_EMUS_BASE_11 0x00 // Base ID for EMUS BMS 11-bit IDs
@@ -24,9 +26,18 @@
 #define CAN_VDM_USE_EXT 1 // 1 if using extended IDs, 0 if using standard IDs
 #define CAN_VDM_BASE_29 0x0000A // Base ID for VDM 29-bit IDs
 
-#define CAN_INVERTER_USE_EXT 1 // 1 if using extended IDs, 0 if using standard IDs
-#define CAN_INVERTER_BASE_ID1 0x0A0 // Base ID for Inverter1 29-bit IDs
-#define CAN_INVERTER_BASE_ID2 0x0B0 // Base ID for Inverter2 29-bit IDs
+#define CAN_INVERTER_USE_EXT 0 // 1 if using extended IDs, 0 if using standard IDs
+#define CAN_INVERTER_BASE_ID1 0x0D0 // Base ID for Inverter1 29-bit IDs
+#define CAN_INVERTER_BASE_ID2 0x0A0 // Base ID for Inverter2 29-bit IDs
+
+#define CAN_SENSORBOARD_BASE_11 0x65D
+#define CAN_SENSORBOARD_USE_EXT 0
+
+#define CAN_DASHBOARD_BASE_11 0x750
+#define CAN_DASHBOARD_USE_EXT 0
+
+#define CAN_BROADCAST_BASE_11 0x770
+#define CAN_BROADCAST_USE_EXT 0
 
 // CAN Tx and Rx queues
 extern QueueHandle_t CAN_TxQueue;
@@ -58,6 +69,13 @@ void CAN_Configure(void);
 void CAN_CommunicationTask(void);
 
 /**
+ * @brief Function for broadcasting CAN messages from the CVC.
+ * @param None
+ * @retval None 
+ */
+void CAN_BroadcastTask(void);
+
+/**
  * @brief Function for queuing CAN messages to be transmitted.
  * Handles both standard and extended CAN messages.
  * @param uint32_t id: CAN message ID (11-bit or 29-bit)
@@ -77,8 +95,14 @@ void CAN_InterpretTask(void);
 
 // ========================= CAN Parsing Functions =========================
 
-// TODO: Implement 11-bit CAN message parsing functions
-// Only 29-bit CAN message parsing functions are currently implemented
+// ========== Dashboard Parsing Functions ==========
+/**
+ * @brief Parses Dashboard 11-bit CAN message.
+ * @param uint8_t data[8]: Array of 8 bytes of data to be parsed
+ * @retval None
+ */
+void CAN_Parse_Dashboard(CAN_Queue_Frame_t frame);
+
 // ========== EMUS BMS Parsing Functions ==========
 
 /**
@@ -197,6 +221,13 @@ void CAN_Parse_VDM_AccelerationData(CAN_Queue_Frame_t frame);
 void CAN_Parse_VDM_YawRateData(CAN_Queue_Frame_t frame);
 
 /**
+ * @brief Parse Sensor Board CAN messages.
+ * @param frame: A CAN frame containing 8 bytes of data to be parsed.
+ * @retval None
+ */
+void CAN_Parse_SensorBoard(CAN_Queue_Frame_t frame);
+
+/**
  * @brief Parses Inverter 29-bit Temperatures #1 CAN message. (0x0A0)
  * @param uint8_t data[8]: Array of 8 bytes of data to be parsed
  * @retval None
@@ -219,6 +250,14 @@ void CAN_Parse_Inverter_Temp2(CAN_Queue_Frame_t frame, bool isFirstInverter);
  */
 
 void CAN_Parse_Inverter_Temp3TorqueShudder(CAN_Queue_Frame_t frame, bool isFirstInverter);
+
+/**
+ * @brief Parses Inverter 29-bit Analog Input Status CAN message. (0x0A3)
+ * @param uint8_t data[8]: Array of 8 bytes of data to be parsed
+ * @retval None
+ */
+
+void CAN_Parse_Inverter_AnalogInputStatus(CAN_Queue_Frame_t frame, bool isFirstInverter);
 
 /**
  * @brief Parses Inverter 29-bit Digital Input Status CAN message. (0x0A4)
@@ -292,5 +331,13 @@ void CAN_Parse_Inverter_FaultCodes(CAN_Queue_Frame_t frame,	bool isFirstInverter
 
 void CAN_Parse_Inverter_HighSpeedParameters(CAN_Queue_Frame_t frame, bool isFirstInverter);
 
+
+// ========================= CAN Broadcast Functions =========================
+/**
+ * @brief Updates dashboard with information about AMS and IMD relay state, as well as current drive state
+ * @param None
+ * @retval None
+ */
+void CAN_Broadcast_Dashboard_Critical(void);
 
 #endif /* INC_CVC_CAN_H_ */

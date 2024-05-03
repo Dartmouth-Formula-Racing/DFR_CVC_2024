@@ -17,11 +17,35 @@
 // Mutex for CVC data
 extern SemaphoreHandle_t CVC_DataMutex;
 
+// Drive state enum
+typedef enum {
+    NEUTRAL = 0,
+    DRIVE,
+    REVERSE,
+} drive_state_t;
+
 // Allows using names instead of indexes for CVC data
 // Counts from 0
 // Yes this is incredibly inefficient but this
 // only uses a fraction of our available memory.
 typedef enum {
+    // === CVC Data ===
+    CVC_THROTTLE_ADC,
+    CVC_THROTTLE,
+    CVC_THROTTLE_VALID,
+    CVC_DRIVE_MODE, // 0 = neutral, 1 = drive, 2 = reverse
+    LV_VOLTAGE,
+    CVC_LEFT_TORQUE, // Left motor torque
+    CVC_RIGHT_TORQUE, // Right motor torque
+    // === Front Sensor Board ==
+    SENSOR_THROTTLE_ADC,
+    SENSOR_STEERING_ANGLE,
+    SENSOR_LEFT_WHEELSPEED,
+    SENSOR_RIGHT_WHEELSPEED,
+    SENSOR_BRAKESWITCH,
+    // === Dashboard ===
+    DASH_REQUESTED_STATE, // neutral, drive, reverse, none
+    DASH_SELECTOR_VALUE,
     // === EMUS BMS ===
     // Overall Parameters
     BMS_IGNITION,
@@ -144,6 +168,19 @@ typedef enum {
     // Torque Parameters
     INVERTER1_TORQUE_SHUDDER,
     INVERTER2_TORQUE_SHUDDER,
+    // Analog Input Status Parameters
+    INVERTER1_ANALOG_INPUT_1,
+    INVERTER1_ANALOG_INPUT_2,
+    INVERTER1_ANALOG_INPUT_3,
+    INVERTER1_ANALOG_INPUT_4,
+    INVERTER1_ANALOG_INPUT_5,
+    INVERTER1_ANALOG_INPUT_6,
+    INVERTER2_ANALOG_INPUT_1,
+    INVERTER2_ANALOG_INPUT_2,
+    INVERTER2_ANALOG_INPUT_3,
+    INVERTER2_ANALOG_INPUT_4,
+    INVERTER2_ANALOG_INPUT_5,
+    INVERTER2_ANALOG_INPUT_6,
     // Digital Input Status Parameters
     INVERTER1_FORWARD_SWITCH,
     INVERTER1_REVERSE_SWITCH,
@@ -285,20 +322,9 @@ typedef enum {
     NUM_VALUES,
 } CVC_data_id_t;
 
-// Data types for CAN data, used for parsing
-typedef enum {
-    INT_10,    // Signed integer, divided by 10 for real value
-    INT_100,   // Signed integer, divided by 100 for real value
-    INT_1000,  // Signed integer, divided by 1000 for real value
-    BOOLEAN,   // Boolean value, 0 or 1
-    FLOAT,     // Float value
-    INT,       // Signed integer, no division
-    UINT,      // Unsigned integer, no division
-} type_t;
 
 // CAN data structure for storing different data types in one vector
 typedef struct {
-    type_t type;
     uint64_t data;
 } CVC_data_t;
 
@@ -338,10 +364,9 @@ int32_t CVC_DataToInt(CVC_data_id_t id);
  * @param CVC_data_id_t id: ID of data to store
  * @param void *data: Data to store
  * @param uint8_t len: Length of data to store in bits
- * @param type_t type: Type of data to store
  * @retval None
  */
-void CVC_SetData(CVC_data_id_t id, void *data, uint8_t len, type_t type);
+void CVC_SetData(CVC_data_id_t id, void *data, uint8_t len);
 
 /**
  * @brief Gets CVC data from data vector

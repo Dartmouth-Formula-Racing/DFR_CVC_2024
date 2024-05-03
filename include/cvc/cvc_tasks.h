@@ -20,7 +20,7 @@ void Communication(void *argument);
  * @param argument: Not used
  * @retval None
  */
-void CommunicationProcessing(void *argument);
+void Data(void *argument);
 
 /**
  * @brief Thread for control functions.

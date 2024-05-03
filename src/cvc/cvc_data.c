@@ -9,51 +9,19 @@ void CVC_DataInit(void) {
     CVC_DataMutex = xSemaphoreCreateMutex();
 }
 
-float CVC_DataToFloat(CVC_data_id_t id) {
-    CVC_data_t temp = CVC_GetData(id);
-
-    if (temp.type == INT_10) {
-        return ((float)((int32_t)temp.data)) / 10;
-    }
-    if (temp.type == INT_100) {
-        return ((float)((int32_t)temp.data)) / 100;
-    }
-    if (temp.type == INT_1000) {
-        return ((float)((int32_t)temp.data)) / 1000;
-    }
-    if (temp.type == FLOAT) {
-        return (float)temp.data;
-    }
-    return (float)0;
-}
-
-uint64_t CVC_DataToUint(CVC_data_id_t id) {
-    CVC_data_t temp = CVC_GetData(id);
-    return (uint64_t)temp.data;
-}
-
-int32_t CVC_DataToInt(CVC_data_id_t id) {
-    CVC_data_t temp = CVC_GetData(id);
-    return (int32_t)temp.data;
-}
-
-void CVC_SetData(CVC_data_id_t id, void *data, uint8_t size, type_t type) {
+void CVC_SetData(CVC_data_id_t id, void *data, uint8_t size) {
     uint64_t temp = 0;
-    if (size <= 8) {
+    if (size <= sizeof(uint8_t)) {
         temp = *(uint8_t *)data;
-    }
-    if (size <= 16) {
+    } else if (size <= sizeof(uint16_t)) {
         temp = *(uint16_t *)data;
-    }
-    if (size <= 32) {
+    } else if (size <= sizeof(uint32_t)) {
         temp = *(uint32_t *)data;
-    }
-    if (size <= 64) {
+    } else if (size <= sizeof(uint64_t)) {
         temp = *(uint64_t *)data;
     }
     xSemaphoreTake(CVC_DataMutex, portMAX_DELAY);
     CVC_data[id].data = temp;
-    CVC_data[id].type = type;
     xSemaphoreGive(CVC_DataMutex);
 }
 
