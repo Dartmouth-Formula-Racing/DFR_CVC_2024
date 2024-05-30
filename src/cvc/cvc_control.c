@@ -97,6 +97,7 @@ void Control_StateMachine() {
                 CVC_State = WAIT_FOR_PRECHARGE;
                 air2State = false;  // Open AIR2
             }
+            break;
         case NOT_READY_TO_DRIVE:
             // Enter buzzer state if drive or reverse is requested and throttle is valid and throttle is less than 5%
             throttle = CVC_GetData(CVC_THROTTLE);
