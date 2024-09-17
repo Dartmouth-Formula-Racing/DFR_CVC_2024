@@ -26,6 +26,7 @@ void Control_StateMachine() {
     static TickType_t buzzerStartTime = 0;
     static TickType_t prechargeStartTime = 0;
     static TickType_t voltageDropStartTime = 0;
+    static TickType_t contactorCloseTime = 0;
     static bool voltageDropTimer = false;
     static bool air2State = false;
     static bool neutralRequested = false;
@@ -94,6 +95,7 @@ void Control_StateMachine() {
             if (Inv1_voltage >= HV_voltage * MIN_PRECHARGE_PERCENT && Inv2_voltage >= HV_voltage * MIN_PRECHARGE_PERCENT) {
                 CVC_State = NOT_READY_TO_DRIVE;
                 air2State = true;  // Close AIR2
+                contactorCloseTime = xTaskGetTickCount();
             } else {
                 CVC_State = WAIT_FOR_PRECHARGE;
                 air2State = false;  // Open AIR2
@@ -106,9 +108,11 @@ void Control_StateMachine() {
             drive_mode = NEUTRAL;
             // Return to wait for precharge state if bus voltage drops below HV_voltage * MIN_PRECHARGE_PERCENT
             if (Inv1_voltage < HV_voltage * MIN_PRECHARGE_PERCENT || Inv2_voltage < HV_voltage * MIN_PRECHARGE_PERCENT) {
-                CVC_State = WAIT_FOR_PRECHARGE;
-                air2State = false;  // Open AIR2
-                break;
+                if (xTaskGetTickCount() - contactorCloseTime >= PRECHARGE_HOLD_TIME / portTICK_PERIOD_MS) {
+                    CVC_State = WAIT_FOR_PRECHARGE;
+                    air2State = false;  // Open AIR2
+                    break;
+                }
             }
 
             // if ((requested_drive_mode == DRIVE || requested_drive_mode == REVERSE) && neutralRequested) {
@@ -132,10 +136,12 @@ void Control_StateMachine() {
             drive_mode = NEUTRAL;
             // Return to wait for precharge state if bus voltage drops below HV_voltage * MIN_PRECHARGE_PERCENT
             if (Inv1_voltage < HV_voltage * MIN_PRECHARGE_PERCENT && Inv2_voltage < HV_voltage * MIN_PRECHARGE_PERCENT) {
-                CVC_State = WAIT_FOR_PRECHARGE;
-                air2State = false;     // Open AIR2
-                Relay_Set(Buzzer, 0);  // Turn off buzzer
-                break;
+                if (xTaskGetTickCount() - contactorCloseTime >= PRECHARGE_HOLD_TIME / portTICK_PERIOD_MS) {
+                    CVC_State = WAIT_FOR_PRECHARGE;
+                    air2State = false;     // Open AIR2
+                    Relay_Set(Buzzer, 0);  // Turn off buzzer
+                    break;
+                }
             }
             // Enter ready to drive state once buzzer time has elapsed
             if (xTaskGetTickCount() - buzzerStartTime >= BUZZER_TIME / portTICK_PERIOD_MS) {

@@ -36,9 +36,10 @@
 
 #define MAX_SAG_PERCENT 0.60  // Threshold for bus voltage sag before forcing not ready to drive
 
-#define VOLTAGE_DROP_TIMEOUT 1000 // Time before voltage is considered invalid before leaving RTD
+#define VOLTAGE_DROP_TIMEOUT 500 // Time before voltage is considered invalid before leaving RTD
 
-#define PRECHARGE_TIME 5000  // Time in milliseconds for precharge to take place
+#define PRECHARGE_TIME 1500  // Time in milliseconds for precharge to take place
+#define PRECHARGE_HOLD_TIME 200  // Minimum time in milliseconds for the contactors to be closed before the vehicle can be discharged
 
 typedef enum {
     INITIAL,
