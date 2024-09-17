@@ -19,6 +19,7 @@ uint8_t Control_RequestedState_Temp() {
 
 void Control_Init() {
     CVC_State = INITIAL;
+    Relay_Set(BrakeLight, 1);
 }
 
 void Control_StateMachine() {
@@ -109,14 +110,22 @@ void Control_StateMachine() {
                 air2State = false;  // Open AIR2
                 break;
             }
-            if ((requested_drive_mode == DRIVE || requested_drive_mode == REVERSE) && neutralRequested) {
-                if (throttle_valid.data == 1 && throttle.data < MAX_THROTTLE_RTD) {
-                    neutralRequested = 0;  // clear requested neutral, require neutral again before next drive
-                    CVC_State = BUZZER;
-                    buzzerStartTime = xTaskGetTickCount();
-                    Relay_Set(Buzzer, 1);  // Turn on buzzer
-                }
+
+            // if ((requested_drive_mode == DRIVE || requested_drive_mode == REVERSE) && neutralRequested) {
+            //     if (throttle_valid.data == 1 && throttle.data < MAX_THROTTLE_RTD) {
+            //         neutralRequested = 0;  // clear requested neutral, require neutral again before next drive
+            //         CVC_State = BUZZER;
+            //         buzzerStartTime = xTaskGetTickCount();
+            //         Relay_Set(Buzzer, 1);  // Turn on buzzer
+            //     }
+            // }
+
+            // RTD button bypass, remove when dashboard is fixed
+            if ((throttle_valid.data == 1) & (throttle.data < MAX_THROTTLE_RTD)) {
+                CVC_State = READY_TO_DRIVE;
+                drive_mode = DRIVE;
             }
+
             break;
         case BUZZER:
             neutralRequested = 0;  // clear requested neutral, require neutral again before next drive
@@ -124,7 +133,7 @@ void Control_StateMachine() {
             // Return to wait for precharge state if bus voltage drops below HV_voltage * MIN_PRECHARGE_PERCENT
             if (Inv1_voltage < HV_voltage * MIN_PRECHARGE_PERCENT && Inv2_voltage < HV_voltage * MIN_PRECHARGE_PERCENT) {
                 CVC_State = WAIT_FOR_PRECHARGE;
-                air2State = false;  // Open AIR2
+                air2State = false;     // Open AIR2
                 Relay_Set(Buzzer, 0);  // Turn off buzzer
                 break;
             }
@@ -162,14 +171,14 @@ void Control_StateMachine() {
                 break;
             }
 
-            if (requested_drive_mode == NEUTRAL) {
-                CVC_State = NOT_READY_TO_DRIVE;
-                drive_mode = NEUTRAL;
-            } else if (requested_drive_mode == DRIVE && drive_mode == NEUTRAL) {
-                drive_mode = DRIVE;
-            } else if (requested_drive_mode == REVERSE && drive_mode == NEUTRAL) {
-                drive_mode = REVERSE;
-            }
+            // if (requested_drive_mode == NEUTRAL) {
+            //     CVC_State = NOT_READY_TO_DRIVE;
+            //     drive_mode = NEUTRAL;
+            // } else if (requested_drive_mode == DRIVE && drive_mode == NEUTRAL) {
+            //     drive_mode = DRIVE;
+            // } else if (requested_drive_mode == REVERSE && drive_mode == NEUTRAL) {
+            //     drive_mode = REVERSE;
+            // }
             break;
     }
     // Update drive mode
@@ -203,7 +212,6 @@ void Control_ControlTask() {
         Control_Throttle();
         Control_StateMachine();
         Control_CalculateTorque();
-        Relay_Set(BrakeLight, 1);
     }
 }
 
@@ -300,7 +308,7 @@ void Control_CalculateTorque() {
 
     // volatile int16_t steering_data = CVC_GetData(SENSOR_STEERING_ANGLE).data;  // 0 to 4095, center is 2048
     volatile uint16_t steering_data = CVC_GetData(INVERTER1_ANALOG_INPUT_1).data;
-    volatile uint8_t drive_mode = CVC_GetData(CVC_DRIVE_MODE).data;            // 0 = neutral, 1 = drive, 2 = reverse
+    volatile uint8_t drive_mode = CVC_GetData(CVC_DRIVE_MODE).data;  // 0 = neutral, 1 = drive, 2 = reverse
     // volatile float steering = (float)(steering_data - 2048) / 2048;                  // -1 to 1
     volatile float steering = (float)(steering_data - ADC_WHEEL_RIGHT) / (float)(ADC_WHEEL_LEFT - ADC_WHEEL_RIGHT);
 
@@ -328,8 +336,9 @@ void Control_CalculateTorque() {
             command_left[5] |= (1 << 0);   // Enable inverter
             command_right[5] |= (1 << 0);  // Enable inverter
             if (throttle > 0) {
-                command_left[4] = 1;   // Forward direction
-                command_right[4] = 0;  // Reverse direction -- Motor is flipped
+                command_left[4] = 1;  // Forward direction
+                // command_right[4] = 0;  // Reverse direction -- Motor is flipped
+                command_right[4] = 1;  // Forward direction -- Somehow the right motor is spinning backwards
                 // Calculate torque for pressed pedal
                 torque = (int16_t)(throttle * MAX_TORQUE);
                 // Calculate torque vectoring based on steering angle
@@ -359,7 +368,7 @@ void Control_CalculateTorque() {
                 command_right[0] = (uint8_t)(torque_right & 0xFF);       // Select lower byte of torque_right
                 command_right[1] = (uint8_t)(torque_right >> 8 & 0xFF);  // Select upper byte of torque_right
             }
-        } else if (drive_mode == REVERSE) {  // reverse
+            // } else if (drive_mode == REVERSE) {  // reverse
 
         } else {  // neutral
             // Disable inverters

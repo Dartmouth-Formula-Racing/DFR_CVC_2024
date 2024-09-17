@@ -23,7 +23,7 @@
 #define BUZZER_TIME 1500      // Time in milliseconds for buzzer
 #define MAX_THROTTLE_RTD 750  // Maximum throttle for entering ready to drive (5%)
 
-#define MAX_TORQUE (int)(1210 * 0.60)  // Maximum torque for motor
+#define MAX_TORQUE (int)(1210 * 1.00)  // Maximum torque for motor
 #define TORQUE_VECTOR_GAIN 0.5         // Gain for torque vectoring
 #define ADC_WHEEL_LEFT 233
 #define ADC_WHEEL_RIGHT 0
