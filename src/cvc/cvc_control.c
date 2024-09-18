@@ -75,30 +75,46 @@ void Control_StateMachine() {
             air2State = false;  // Open AIR2
             // Wait for precharge button to be pressed and shutdown circuit to be closed
             if (CVC_12V_Read(PrechargeBtn) && shutdownCircuit) {
-                CVC_State = PRECHARGE_START;
-                prechargeStartTime = xTaskGetTickCount();
+                CVC_State = PRECHARGE_STAGE1;
+                prechargeStartTime = xTaskGetTickCount();  // Start precharge timer when precharge button is pressed
             }
             break;
-        case PRECHARGE_START:
+        case PRECHARGE_STAGE1:  // Wait for timer to elapse before checking HV bus voltage
             drive_mode = NEUTRAL;
             air2State = false;  // Open AIR2
             // Wait for precharge time to elapse
             if (xTaskGetTickCount() - prechargeStartTime >= PRECHARGE_TIME / portTICK_PERIOD_MS) {
-                CVC_State = PRECHARGE_END;
+                CVC_State = PRECHARGE_STAGE2;
             } else {
-                CVC_State = PRECHARGE_START;
+                CVC_State = PRECHARGE_STAGE1;
             }
             break;
-        case PRECHARGE_END:
+        case PRECHARGE_STAGE2:  // Close second contactor if HV voltage is above 90% of HV battery voltage when precharge time elapses
             drive_mode = NEUTRAL;
             // Wait for HV bus voltage to reach 90% of HV battery voltage
             if (Inv1_voltage >= HV_voltage * MIN_PRECHARGE_PERCENT && Inv2_voltage >= HV_voltage * MIN_PRECHARGE_PERCENT) {
                 CVC_State = NOT_READY_TO_DRIVE;
-                air2State = true;  // Close AIR2
-                contactorCloseTime = xTaskGetTickCount();
+                air2State = true;                          // Close AIR2
+                contactorCloseTime = xTaskGetTickCount();  // Start stable voltage timer when contactors are closed
             } else {
                 CVC_State = WAIT_FOR_PRECHARGE;
                 air2State = false;  // Open AIR2
+            }
+            break;
+        case PRECHARGE_STAGE3:  // Wait for stable voltage before transitioning to NOT_READY_TO_DRIVE
+            drive_mode = NEUTRAL;
+            // Wait for stable voltage to be reached
+            if (xTaskGetTickCount() - contactorCloseTime >= PRECHARGE_HOLD_TIME / portTICK_PERIOD_MS) {
+                if (Inv1_voltage >= HV_voltage * MIN_PRECHARGE_PERCENT && Inv2_voltage >= HV_voltage * MIN_PRECHARGE_PERCENT) {
+                    CVC_State = NOT_READY_TO_DRIVE;
+                    air2State = true;  // Close AIR2
+                } else {
+                    CVC_State = WAIT_FOR_PRECHARGE;
+                    air2State = false;  // Open AIR2
+                }
+            } else {
+                CVC_State = PRECHARGE_STAGE3;
+                air2State = true;  // Close AIR2
             }
             break;
         case NOT_READY_TO_DRIVE:
@@ -108,11 +124,9 @@ void Control_StateMachine() {
             drive_mode = NEUTRAL;
             // Return to wait for precharge state if bus voltage drops below HV_voltage * MIN_PRECHARGE_PERCENT
             if (Inv1_voltage < HV_voltage * MIN_PRECHARGE_PERCENT || Inv2_voltage < HV_voltage * MIN_PRECHARGE_PERCENT) {
-                if (xTaskGetTickCount() - contactorCloseTime >= PRECHARGE_HOLD_TIME / portTICK_PERIOD_MS) {
-                    CVC_State = WAIT_FOR_PRECHARGE;
-                    air2State = false;  // Open AIR2
-                    break;
-                }
+                CVC_State = WAIT_FOR_PRECHARGE;
+                air2State = false;  // Open AIR2
+                break;
             }
 
             // if ((requested_drive_mode == DRIVE || requested_drive_mode == REVERSE) && neutralRequested) {
@@ -136,12 +150,10 @@ void Control_StateMachine() {
             drive_mode = NEUTRAL;
             // Return to wait for precharge state if bus voltage drops below HV_voltage * MIN_PRECHARGE_PERCENT
             if (Inv1_voltage < HV_voltage * MIN_PRECHARGE_PERCENT && Inv2_voltage < HV_voltage * MIN_PRECHARGE_PERCENT) {
-                if (xTaskGetTickCount() - contactorCloseTime >= PRECHARGE_HOLD_TIME / portTICK_PERIOD_MS) {
-                    CVC_State = WAIT_FOR_PRECHARGE;
-                    air2State = false;     // Open AIR2
-                    Relay_Set(Buzzer, 0);  // Turn off buzzer
-                    break;
-                }
+                CVC_State = WAIT_FOR_PRECHARGE;
+                air2State = false;     // Open AIR2
+                Relay_Set(Buzzer, 0);  // Turn off buzzer
+                break;
             }
             // Enter ready to drive state once buzzer time has elapsed
             if (xTaskGetTickCount() - buzzerStartTime >= BUZZER_TIME / portTICK_PERIOD_MS) {
@@ -336,15 +348,17 @@ void Control_CalculateTorque() {
     command_left[6] = 0;
     command_left[7] = 0;
 
-    if (CVC_State == READY_TO_DRIVE && throttle_valid.data == 1 && throttle > 0) {
+    // if (CVC_State == READY_TO_DRIVE && throttle_valid.data == 1 && throttle > 0) {
+    if (CVC_State == READY_TO_DRIVE && throttle_valid.data == 1) {
         if (drive_mode == DRIVE) {  // drive
             // Enable inverters
             command_left[5] |= (1 << 0);   // Enable inverter
             command_right[5] |= (1 << 0);  // Enable inverter
+            command_left[4] = 1;           // Forward direction
+            // command_right[4] = 0;  // Reverse direction -- Motor is flipped
+            command_right[4] = 1;  // Forward direction -- Somehow the right motor is spinning backwards
+
             if (throttle > 0) {
-                command_left[4] = 1;  // Forward direction
-                // command_right[4] = 0;  // Reverse direction -- Motor is flipped
-                command_right[4] = 1;  // Forward direction -- Somehow the right motor is spinning backwards
                 // Calculate torque for pressed pedal
                 torque = (int16_t)(throttle * MAX_TORQUE);
                 // Calculate torque vectoring based on steering angle

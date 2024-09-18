@@ -13,7 +13,7 @@
   * in the root directory of this software component.
   * If no LICENSE file comes with this software, it is provided AS-IS.
   *
- ******************************************************************************
+  ******************************************************************************
   */
 /* USER CODE END Header */
 
@@ -52,6 +52,8 @@ void MemManage_Handler(void);
 void BusFault_Handler(void);
 void UsageFault_Handler(void);
 void DebugMon_Handler(void);
+void CAN1_RX0_IRQHandler(void);
+void CAN1_RX1_IRQHandler(void);
 void TIM1_UP_TIM10_IRQHandler(void);
 /* USER CODE BEGIN EFP */
 

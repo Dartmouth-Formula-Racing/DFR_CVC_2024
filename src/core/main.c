@@ -27,6 +27,8 @@
 #include <cvc_init.h>
 #include <cvc_relay.h>
 #include <cvc_tasks.h>
+#include <queue.h>
+#include <string.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -50,15 +52,17 @@ ADC_HandleTypeDef hadc2;
 
 CAN_HandleTypeDef hcan1;
 
+RTC_HandleTypeDef hrtc;
+
 SPI_HandleTypeDef hspi1;
 
 /* Definitions for defaultTask */
-// osThreadId_t defaultTaskHandle;
-// const osThreadAttr_t defaultTask_attributes = {
-//   .name = "defaultTask",
-//   .stack_size = 128 * 4,
-//   .priority = (osPriority_t) osPriorityLow,
-// };
+osThreadId_t defaultTaskHandle;
+const osThreadAttr_t defaultTask_attributes = {
+  .name = "defaultTask",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityLow,
+};
 /* USER CODE BEGIN PV */
 osThreadId_t communicationTaskHandle;
 const osThreadAttr_t communicationTask_attributes = {
@@ -87,6 +91,7 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_SPI1_Init(void);
 static void MX_ADC1_Init(void);
+static void MX_RTC_Init(void);
 static void MX_ADC2_Init(void);
 static void MX_CAN1_Init(void);
 // void StartDefaultTask(void *argument);
@@ -97,7 +102,19 @@ static void MX_CAN1_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+// QueueHandle_t canQueue;
 
+// void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan) {
+//     CAN_RxHeaderTypeDef rxHeader;
+//     uint8_t rxData[8];
+//     if (HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &rxHeader, rxData) == HAL_OK) {
+//         // Allocate space for header and data in queue
+//         uint8_t queueItem[sizeof(CAN_RxHeaderTypeDef) + 8];
+//         memcpy(queueItem, &rxHeader, sizeof(CAN_RxHeaderTypeDef));
+//         memcpy(queueItem + sizeof(CAN_RxHeaderTypeDef), rxData, 8);
+//         xQueueSendFromISR(canQueue, queueItem, NULL);
+//     }
+// }
 /* USER CODE END 0 */
 
 /**
@@ -106,7 +123,7 @@ static void MX_CAN1_Init(void);
  */
 int main(void) {
     /* USER CODE BEGIN 1 */
-
+    // canQueue = xQueueCreate(10, sizeof(CAN_RxHeaderTypeDef) + 8);  // Assuming max 8 bytes per CAN message
     /* USER CODE END 1 */
 
     /* MCU Configuration--------------------------------------------------------*/
@@ -129,6 +146,7 @@ int main(void) {
     MX_GPIO_Init();
     MX_SPI1_Init();
     MX_ADC1_Init();
+    // MX_RTC_Init();
     MX_ADC2_Init();
     MX_CAN1_Init();
     /* USER CODE BEGIN 2 */
@@ -164,6 +182,8 @@ int main(void) {
     controlTaskHandle = osThreadNew(Control, NULL, &controlTask_attributes);
 
     /* USER CODE END RTOS_THREADS */
+
+    /* USER CODE BEGIN RTOS_EVENTS */
     /* add events, ... */
     /* USER CODE END RTOS_EVENTS */
 
@@ -171,6 +191,7 @@ int main(void) {
     osKernelStart();
 
     /* We should never get here as control is now taken by the scheduler */
+
     /* Infinite loop */
     /* USER CODE BEGIN WHILE */
     while (1) {
@@ -342,7 +363,7 @@ static void MX_CAN1_Init(void) {
     hcan1.Init.AutoWakeUp = ENABLE;
     hcan1.Init.AutoRetransmission = ENABLE;
     hcan1.Init.ReceiveFifoLocked = DISABLE;
-    hcan1.Init.TransmitFifoPriority = DISABLE;
+    hcan1.Init.TransmitFifoPriority = ENABLE;
     if (HAL_CAN_Init(&hcan1) != HAL_OK) {
         Error_Handler();
     }
@@ -366,10 +387,73 @@ static void MX_CAN1_Init(void) {
 
     // Start CAN peripheral
     if (HAL_CAN_Start(&hcan1) != HAL_OK) {
+        // Start Error
         Error_Handler();
     }
 
+    // Activate CAN RX notification
+    if (HAL_CAN_ActivateNotification(&hcan1, CAN_IT_RX_FIFO0_MSG_PENDING) != HAL_OK) {
+        // Notification Error
+        Error_Handler();
+    }
     /* USER CODE END CAN1_Init 2 */
+}
+
+/**
+ * @brief RTC Initialization Function
+ * @param None
+ * @retval None
+ */
+static void MX_RTC_Init(void) {
+    /* USER CODE BEGIN RTC_Init 0 */
+
+    /* USER CODE END RTC_Init 0 */
+
+    RTC_TimeTypeDef sTime = {0};
+    RTC_DateTypeDef sDate = {0};
+
+    /* USER CODE BEGIN RTC_Init 1 */
+
+    /* USER CODE END RTC_Init 1 */
+
+    /** Initialize RTC Only
+     */
+    hrtc.Instance = RTC;
+    hrtc.Init.HourFormat = RTC_HOURFORMAT_24;
+    hrtc.Init.AsynchPrediv = 127;
+    hrtc.Init.SynchPrediv = 255;
+    hrtc.Init.OutPut = RTC_OUTPUT_DISABLE;
+    hrtc.Init.OutPutPolarity = RTC_OUTPUT_POLARITY_HIGH;
+    hrtc.Init.OutPutType = RTC_OUTPUT_TYPE_OPENDRAIN;
+    if (HAL_RTC_Init(&hrtc) != HAL_OK) {
+        Error_Handler();
+    }
+
+    /* USER CODE BEGIN Check_RTC_BKUP */
+
+    /* USER CODE END Check_RTC_BKUP */
+
+    /** Initialize RTC and set the Time and Date
+     */
+    sTime.Hours = 0x13;
+    sTime.Minutes = 0x45;
+    sTime.Seconds = 0x59;
+    sTime.DayLightSaving = RTC_DAYLIGHTSAVING_NONE;
+    sTime.StoreOperation = RTC_STOREOPERATION_RESET;
+    if (HAL_RTC_SetTime(&hrtc, &sTime, RTC_FORMAT_BCD) != HAL_OK) {
+        Error_Handler();
+    }
+    sDate.WeekDay = RTC_WEEKDAY_SUNDAY;
+    sDate.Month = RTC_MONTH_APRIL;
+    sDate.Date = 0x7;
+    sDate.Year = 0x0;
+
+    if (HAL_RTC_SetDate(&hrtc, &sDate, RTC_FORMAT_BCD) != HAL_OK) {
+        Error_Handler();
+    }
+    /* USER CODE BEGIN RTC_Init 2 */
+
+    /* USER CODE END RTC_Init 2 */
 }
 
 /**
@@ -419,6 +503,7 @@ static void MX_GPIO_Init(void) {
     /* USER CODE END MX_GPIO_Init_1 */
 
     /* GPIO Ports Clock Enable */
+    __HAL_RCC_GPIOC_CLK_ENABLE();
     __HAL_RCC_GPIOA_CLK_ENABLE();
     __HAL_RCC_GPIOB_CLK_ENABLE();
     __HAL_RCC_GPIOG_CLK_ENABLE();
@@ -483,15 +568,20 @@ static void MX_GPIO_Init(void) {
  * @retval None
  */
 /* USER CODE END Header_StartDefaultTask */
-// void StartDefaultTask(void *argument)
-// {
-//   /* USER CODE BEGIN 5 */
-//   /* Infinite loop */
-//   for(;;)
-//   {
-//     osDelay(1);
-//   }
-//   /* USER CODE END 5 */
+// void StartDefaultTask(void *argument) {
+//     /* USER CODE BEGIN 5 */
+//     /* Infinite loop */
+//     uint8_t queueItem[sizeof(CAN_RxHeaderTypeDef) + 8];
+//     CAN_RxHeaderTypeDef rxHeader;
+//     uint8_t rxData[8];
+//     for (;;) {
+//         if (xQueueReceive(canQueue, queueItem, portMAX_DELAY) == pdTRUE) {
+//             memcpy(&rxHeader, queueItem, sizeof(CAN_RxHeaderTypeDef));
+//             memcpy(rxData, queueItem + sizeof(CAN_RxHeaderTypeDef), 8);
+//             // Process the message (implement your decoding logic here)
+//         }
+//     }
+//     /* USER CODE END 5 */
 // }
 
 /**
