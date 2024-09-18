@@ -23,6 +23,15 @@ void CAN_Configure() {
     CAN_RxQueue = xQueueCreate(CAN_QUEUE_LENGTH, sizeof(CAN_Queue_Frame_t));
 }
 
+// ===================== CAN Interrupt Functions =====================
+void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan) {
+    CAN_Queue_Frame_t rx_frame;
+
+    if (HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &rx_frame.Rx_header, rx_frame.data) == HAL_OK) {
+        xQueueSendFromISR(CAN_RxQueue, &rx_frame, NULL);
+    }
+}
+
 // ===================== CAN Communication Task Functions =====================
 
 /**
@@ -77,7 +86,7 @@ void CAN_CommunicationTask() {
 
     if ((xTaskGetTickCount() - last) >= interval) {
         CANTxFromQueue();
-        CANRxToQueue();
+        // CANRxToQueue();
         last = xTaskGetTickCount();
     }
 }
@@ -116,170 +125,164 @@ void CAN_Transmit(uint32_t id, uint8_t data[8], uint8_t len, bool isExt) {
  */
 void CANInterpretRx() {
     // Return early if there are no messages in Rx queue
-    if (uxQueueMessagesWaiting(CAN_RxQueue) == 0) {
+    UBaseType_t queueLength = uxQueueMessagesWaiting(CAN_RxQueue);
+    if (queueLength == 0) {
         return;
     }
+    for (uint32_t i = 0; i < queueLength; i++) {
+        CAN_Queue_Frame_t rx_frame;
 
-    CAN_Queue_Frame_t rx_frame;
+        // Get message from Rx queue
+        xQueueReceive(CAN_RxQueue, &rx_frame, 0);
 
-    // Get message from Rx queue
-    xQueueReceive(CAN_RxQueue, &rx_frame, 0);
+        // Select parsing function based on CAN ID
+        // TODO: Find a cleaner way to do this
+        if (rx_frame.Rx_header.IDE == CAN_ID_EXT) {  // 29-bit CAN messages
+            // ===== EMUS BMS CAN IDs =====
+            // Format: Byte 0: Base (MSB) | Byte 1: Base (LSB) | Byte 3 and 4: Message ID
+            if (rx_frame.Rx_header.ExtId == ((CAN_EMUS_BASE_29 << 16) | 0x0000)) {
+                // EMUS BMS Overall Parameters - Byte 3 = 0x00 and Byte 4 = 0x00
+                CAN_Parse_EMUS_OverallParameters(rx_frame);
+            } else if (rx_frame.Rx_header.ExtId == ((CAN_EMUS_BASE_29 << 16) | 0x0007)) {
+                // EMUS BMS Diagnostic Codes - Byte 3 = 0x00 and Byte 4 = 0x07
+                CAN_Parse_EMUS_DiagnosticCodes(rx_frame);
+            } else if (rx_frame.Rx_header.ExtId == ((CAN_EMUS_BASE_29 << 16) | 0x0001)) {
+                // EMUS BMS Battery Voltage Overall Parameters - Byte 3 = 0x00 and Byte 4 = 0x01
+                CAN_Parse_EMUS_BatteryVoltageOverallParameters(rx_frame);
+            } else if (rx_frame.Rx_header.ExtId == ((CAN_EMUS_BASE_29 << 16) | 0x0002)) {
+                // EMUS BMS Cell Module Temperature Overall Parameters - Byte 3 = 0x00 and Byte 4 = 0x02
+                CAN_Parse_EMUS_CellModuleTemperatureOverallParameters(rx_frame);
+            } else if (rx_frame.Rx_header.ExtId == ((CAN_EMUS_BASE_29 << 16) | 0x0008)) {
+                // EMUS BMS Cell Temperature Overall Parameters - Byte 3 = 0x00 and Byte 4 = 0x08
+                CAN_Parse_EMUS_CellTemperatureOverallParameters(rx_frame);
+            } else if (rx_frame.Rx_header.ExtId == ((CAN_EMUS_BASE_29 << 16) | 0x0003)) {
+                // EMUS BMS Cell Balancing Rate Overall Parameters - Byte 3 = 0x00 and Byte 4 = 0x03
+                CAN_Parse_EMUS_CellBalancingRateOverallParameters(rx_frame);
+            } else if (rx_frame.Rx_header.ExtId == ((CAN_EMUS_BASE_29 << 16) | 0x0500)) {
+                // EMUS BMS State of Charge Parameters - Byte 3 = 0x05 and Byte 4 = 0x00
+                CAN_Parse_EMUS_StateOfChargeParameters(rx_frame);
+            } else if (rx_frame.Rx_header.ExtId == ((CAN_EMUS_BASE_29 << 16) | 0x0400)) {
+                // EMUS BMS Configuration Parameters - Byte 3 = 0x04 and Byte 4 = 0x00
+                CAN_Parse_EMUS_ConfigurationParameters(rx_frame);
+            } else if (rx_frame.Rx_header.ExtId == ((CAN_EMUS_BASE_29 << 16) | 0x0401)) {
+                // EMUS BMS Contactor Control - Byte 3 = 0x04 and Byte 4 = 0x01
+                CAN_Parse_EMUS_ContactorControl(rx_frame);
+            } else if (rx_frame.Rx_header.ExtId == ((CAN_EMUS_BASE_29 << 16) | 0x0600)) {
+                // EMUS BMS Energy Parameters - Byte 3 = 0x06 and Byte 4 = 0x00
+                CAN_Parse_EMUS_EnergyParameters(rx_frame);
+            } else if (rx_frame.Rx_header.ExtId == ((CAN_EMUS_BASE_29 << 16) | 0x0405)) {
+                // EMUS BMS Events - Byte 3 = 0x04 and Byte 4 = 0x05
+                CAN_Parse_EMUS_Events(rx_frame);
+            } else if (rx_frame.Rx_header.ExtId == ((CAN_VDM_BASE_29 << 16) | 0X0000)) {
+                // VDM GPS Latitude and Longitude - 0x0000A0000
+                CAN_Parse_VDM_GPSLatitudeLongitude(rx_frame);
+            } else if (rx_frame.Rx_header.ExtId == ((CAN_VDM_BASE_29 << 16) | 0X0001)) {
+                // VDM GPS Data - 0x0000A0001
+                CAN_Parse_VDM_GPSData(rx_frame);
+            } else if (rx_frame.Rx_header.ExtId == ((CAN_VDM_BASE_29 << 16) | 0X0002)) {
+                // VDM GPS Date and Time - 0x0000A0002
+                CAN_Parse_VDM_GPSDateTime(rx_frame);
+            } else if (rx_frame.Rx_header.ExtId == ((CAN_VDM_BASE_29 << 16) | 0X0003)) {
+                // VDM Acceleration Data - 0x0000A0003
+                CAN_Parse_VDM_AccelerationData(rx_frame);
+            } else if (rx_frame.Rx_header.ExtId == ((CAN_VDM_BASE_29 << 16) | 0X0004)) {
+                // VDM Yaw Rate Data - 0x0000A0004
+                CAN_Parse_VDM_YawRateData(rx_frame);
+            }
+        } else if (rx_frame.Rx_header.IDE == CAN_ID_STD) {  // 11-bit CAN messages
+            // ===== Dashboard CAN IDs =====
+            if (rx_frame.Rx_header.StdId == (CAN_DASHBOARD_BASE_11 + 0)) {
+                // Dashboard - Base Address + 0
+                CAN_Parse_Dashboard(rx_frame);
+            }
 
-    if (rx_frame.Rx_header.StdId == CAN_DASHBOARD_BASE_11) {
-        // Dashboard - Base Address
-        CAN_Parse_Dashboard(rx_frame);
-    }
-    if (rx_frame.Rx_header.ExtId == CAN_DASHBOARD_BASE_11) {
-        CAN_Parse_Dashboard(rx_frame);
-    }
-
-    // Select parsing function based on CAN ID
-    // TODO: Find a cleaner way to do this
-    if (rx_frame.Rx_header.IDE == CAN_ID_EXT) {  // 29-bit CAN messages
-        // ===== EMUS BMS CAN IDs =====
-        // Format: Byte 0: Base (MSB) | Byte 1: Base (LSB) | Byte 3 and 4: Message ID
-        if (rx_frame.Rx_header.ExtId == ((CAN_EMUS_BASE_29 << 16) | 0x0000)) {
-            // EMUS BMS Overall Parameters - Byte 3 = 0x00 and Byte 4 = 0x00
-            CAN_Parse_EMUS_OverallParameters(rx_frame);
-        } else if (rx_frame.Rx_header.ExtId == ((CAN_EMUS_BASE_29 << 16) | 0x0007)) {
-            // EMUS BMS Diagnostic Codes - Byte 3 = 0x00 and Byte 4 = 0x07
-            CAN_Parse_EMUS_DiagnosticCodes(rx_frame);
-        } else if (rx_frame.Rx_header.ExtId == ((CAN_EMUS_BASE_29 << 16) | 0x0001)) {
-            // EMUS BMS Battery Voltage Overall Parameters - Byte 3 = 0x00 and Byte 4 = 0x01
-            CAN_Parse_EMUS_BatteryVoltageOverallParameters(rx_frame);
-        } else if (rx_frame.Rx_header.ExtId == ((CAN_EMUS_BASE_29 << 16) | 0x0002)) {
-            // EMUS BMS Cell Module Temperature Overall Parameters - Byte 3 = 0x00 and Byte 4 = 0x02
-            CAN_Parse_EMUS_CellModuleTemperatureOverallParameters(rx_frame);
-        } else if (rx_frame.Rx_header.ExtId == ((CAN_EMUS_BASE_29 << 16) | 0x0008)) {
-            // EMUS BMS Cell Temperature Overall Parameters - Byte 3 = 0x00 and Byte 4 = 0x08
-            CAN_Parse_EMUS_CellTemperatureOverallParameters(rx_frame);
-        } else if (rx_frame.Rx_header.ExtId == ((CAN_EMUS_BASE_29 << 16) | 0x0003)) {
-            // EMUS BMS Cell Balancing Rate Overall Parameters - Byte 3 = 0x00 and Byte 4 = 0x03
-            CAN_Parse_EMUS_CellBalancingRateOverallParameters(rx_frame);
-        } else if (rx_frame.Rx_header.ExtId == ((CAN_EMUS_BASE_29 << 16) | 0x0500)) {
-            // EMUS BMS State of Charge Parameters - Byte 3 = 0x05 and Byte 4 = 0x00
-            CAN_Parse_EMUS_StateOfChargeParameters(rx_frame);
-        } else if (rx_frame.Rx_header.ExtId == ((CAN_EMUS_BASE_29 << 16) | 0x0400)) {
-            // EMUS BMS Configuration Parameters - Byte 3 = 0x04 and Byte 4 = 0x00
-            CAN_Parse_EMUS_ConfigurationParameters(rx_frame);
-        } else if (rx_frame.Rx_header.ExtId == ((CAN_EMUS_BASE_29 << 16) | 0x0401)) {
-            // EMUS BMS Contactor Control - Byte 3 = 0x04 and Byte 4 = 0x01
-            CAN_Parse_EMUS_ContactorControl(rx_frame);
-        } else if (rx_frame.Rx_header.ExtId == ((CAN_EMUS_BASE_29 << 16) | 0x0600)) {
-            // EMUS BMS Energy Parameters - Byte 3 = 0x06 and Byte 4 = 0x00
-            CAN_Parse_EMUS_EnergyParameters(rx_frame);
-        } else if (rx_frame.Rx_header.ExtId == ((CAN_EMUS_BASE_29 << 16) | 0x0405)) {
-            // EMUS BMS Events - Byte 3 = 0x04 and Byte 4 = 0x05
-            CAN_Parse_EMUS_Events(rx_frame);
-        } else if (rx_frame.Rx_header.ExtId == ((CAN_VDM_BASE_29 << 16) | 0X0000)) {
-            // VDM GPS Latitude and Longitude - 0x0000A0000
-            CAN_Parse_VDM_GPSLatitudeLongitude(rx_frame);
-        } else if (rx_frame.Rx_header.ExtId == ((CAN_VDM_BASE_29 << 16) | 0X0001)) {
-            // VDM GPS Data - 0x0000A0001
-            CAN_Parse_VDM_GPSData(rx_frame);
-        } else if (rx_frame.Rx_header.ExtId == ((CAN_VDM_BASE_29 << 16) | 0X0002)) {
-            // VDM GPS Date and Time - 0x0000A0002
-            CAN_Parse_VDM_GPSDateTime(rx_frame);
-        } else if (rx_frame.Rx_header.ExtId == ((CAN_VDM_BASE_29 << 16) | 0X0003)) {
-            // VDM Acceleration Data - 0x0000A0003
-            CAN_Parse_VDM_AccelerationData(rx_frame);
-        } else if (rx_frame.Rx_header.ExtId == ((CAN_VDM_BASE_29 << 16) | 0X0004)) {
-            // VDM Yaw Rate Data - 0x0000A0004
-            CAN_Parse_VDM_YawRateData(rx_frame);
-        }
-    } else if (rx_frame.Rx_header.IDE == CAN_ID_STD) {  // 11-bit CAN messages
-        // ===== Dashboard CAN IDs =====
-        if (rx_frame.Rx_header.StdId == (CAN_DASHBOARD_BASE_11 + 0)) {
-            // Dashboard - Base Address + 0
-            CAN_Parse_Dashboard(rx_frame);
-        }
-
-        // ===== Sensor Board CAN IDs =====
-        if (rx_frame.Rx_header.StdId == (CAN_SENSORBOARD_BASE_11 + 0)) {
-            // Sensor board - Base Address + 0
-            CAN_Parse_SensorBoard(rx_frame);
-        }
-        // ===== PM100DX Inverter1 CAN IDs =====
-        if (rx_frame.Rx_header.StdId == (CAN_INVERTER_BASE_ID1 + 0)) {
-            // Inverter Temperatures #1 - Base Address + 0
-            CAN_Parse_Inverter_Temp1(rx_frame, 1);
-        } else if (rx_frame.Rx_header.StdId == (CAN_INVERTER_BASE_ID1 + 1)) {
-            // Inverter Temperatures #2 - Base Address + 1
-            CAN_Parse_Inverter_Temp2(rx_frame, 1);
-        } else if (rx_frame.Rx_header.StdId == (CAN_INVERTER_BASE_ID1 + 2)) {
-            // Inverter Temperatures #3 and Torque Shudder - Base Address + 2
-            CAN_Parse_Inverter_Temp3TorqueShudder(rx_frame, 1);
-        } else if (rx_frame.Rx_header.StdId == (CAN_INVERTER_BASE_ID1 + 3)) {
-            // Inverter Analog Input Status - Base Address + 3
-            CAN_Parse_Inverter_AnalogInputStatus(rx_frame, 1);
-        } else if (rx_frame.Rx_header.StdId == (CAN_INVERTER_BASE_ID1 + 4)) {
-            // Inverter Digital Input Status - Base Address + 4
-            CAN_Parse_Inverter_DigitalInputStatus(rx_frame, 1);
-        } else if (rx_frame.Rx_header.StdId == (CAN_INVERTER_BASE_ID1 + 5)) {
-            // Inverter Motor Position Parameters - Base Address + 5
-            CAN_Parse_Inverter_MotorPositionParameters(rx_frame, 1);
-        } else if (rx_frame.Rx_header.StdId == (CAN_INVERTER_BASE_ID1 + 6)) {
-            // Inverter Current Parameters - Base Address + 6
-            CAN_Parse_Inverter_CurrentParameters(rx_frame, 1);
-        } else if (rx_frame.Rx_header.StdId == (CAN_INVERTER_BASE_ID1 + 7)) {
-            // Inverter Voltage Parameters - Base Address + 7
-            CAN_Parse_Inverter_VoltageParameters(rx_frame, 1);
-        } else if (rx_frame.Rx_header.StdId == (CAN_INVERTER_BASE_ID1 + 8)) {
-            // Inverter Flux Parameters - Base Address + 8
-            CAN_Parse_Inverter_FluxParameters(rx_frame, 1);
-        } else if (rx_frame.Rx_header.StdId == (CAN_INVERTER_BASE_ID1 + 9)) {
-            // Inverter Internal Voltage Parameters - Base Address + 9
-            CAN_Parse_Inverter_InternalVoltageParameters(rx_frame, 1);
-        } else if (rx_frame.Rx_header.StdId == (CAN_INVERTER_BASE_ID1 + 10)) {
-            // Inverter Internal State Parameters - Base Address + 10
-            CAN_Parse_Inverter_InternalStateParameters(rx_frame, 1);
-        } else if (rx_frame.Rx_header.StdId == (CAN_INVERTER_BASE_ID1 + 11)) {
-            // Inverter Fault Codes - Base Address + 11
-            CAN_Parse_Inverter_FaultCodes(rx_frame, 1);
-        } else if (rx_frame.Rx_header.StdId == (CAN_INVERTER_BASE_ID1 + 16)) {
-            // Inverter High Speed Parameters - Base Address + 16
-            CAN_Parse_Inverter_HighSpeedParameters(rx_frame, 1);
-        }
-        // ===== PM100DX Inverter2 CAN IDs =====
-        if (rx_frame.Rx_header.StdId == (CAN_INVERTER_BASE_ID2 + 0)) {
-            // Inverter Temperatures #1 - Base Address + 0
-            CAN_Parse_Inverter_Temp1(rx_frame, 0);
-        } else if (rx_frame.Rx_header.StdId == (CAN_INVERTER_BASE_ID2 + 1)) {
-            // Inverter Temperatures #2 - Base Address + 1
-            CAN_Parse_Inverter_Temp2(rx_frame, 0);
-        } else if (rx_frame.Rx_header.StdId == (CAN_INVERTER_BASE_ID2 + 2)) {
-            // Inverter Temperatures #3 and Torque Shudder - Base Address + 2
-            CAN_Parse_Inverter_Temp3TorqueShudder(rx_frame, 0);
-        } else if (rx_frame.Rx_header.StdId == (CAN_INVERTER_BASE_ID2 + 3)) {
-            // Inverter Analog Input Status - Base Address + 3
-            CAN_Parse_Inverter_AnalogInputStatus(rx_frame, 0);
-        } else if (rx_frame.Rx_header.StdId == (CAN_INVERTER_BASE_ID2 + 4)) {
-            // Inverter Digital Input Status - Base Address + 4
-            CAN_Parse_Inverter_DigitalInputStatus(rx_frame, 0);
-        } else if (rx_frame.Rx_header.StdId == (CAN_INVERTER_BASE_ID2 + 5)) {
-            // Inverter Motor Position Parameters - Base Address + 5
-            CAN_Parse_Inverter_MotorPositionParameters(rx_frame, 0);
-        } else if (rx_frame.Rx_header.StdId == (CAN_INVERTER_BASE_ID2 + 6)) {
-            // Inverter Current Parameters - Base Address + 6
-            CAN_Parse_Inverter_CurrentParameters(rx_frame, 0);
-        } else if (rx_frame.Rx_header.StdId == (CAN_INVERTER_BASE_ID2 + 7)) {
-            // Inverter Voltage Parameters - Base Address + 7
-            CAN_Parse_Inverter_VoltageParameters(rx_frame, 0);
-        } else if (rx_frame.Rx_header.StdId == (CAN_INVERTER_BASE_ID2 + 8)) {
-            // Inverter Flux Parameters - Base Address + 8
-            CAN_Parse_Inverter_FluxParameters(rx_frame, 0);
-        } else if (rx_frame.Rx_header.StdId == (CAN_INVERTER_BASE_ID2 + 9)) {
-            // Inverter Internal Voltage Parameters - Base Address + 9
-            CAN_Parse_Inverter_InternalVoltageParameters(rx_frame, 0);
-        } else if (rx_frame.Rx_header.StdId == (CAN_INVERTER_BASE_ID2 + 10)) {
-            // Inverter Internal State Parameters - Base Address + 10
-            CAN_Parse_Inverter_InternalStateParameters(rx_frame, 0);
-        } else if (rx_frame.Rx_header.StdId == (CAN_INVERTER_BASE_ID2 + 11)) {
-            // Inverter Fault Codes - Base Address + 11
-            CAN_Parse_Inverter_FaultCodes(rx_frame, 0);
-        } else if (rx_frame.Rx_header.StdId == (CAN_INVERTER_BASE_ID2 + 16)) {
-            // Inverter High Speed Parameters - Base Address + 16
-            CAN_Parse_Inverter_HighSpeedParameters(rx_frame, 0);
+            // ===== Sensor Board CAN IDs =====
+            else if (rx_frame.Rx_header.StdId == (CAN_SENSORBOARD_BASE_11 + 0)) {
+                // Sensor board - Base Address + 0
+                CAN_Parse_SensorBoard(rx_frame);
+            }
+            // ===== PM100DX Inverter1 CAN IDs =====
+            else if (rx_frame.Rx_header.StdId == (CAN_INVERTER_BASE_ID1 + 0)) {
+                // Inverter Temperatures #1 - Base Address + 0
+                CAN_Parse_Inverter_Temp1(rx_frame, 1);
+            } else if (rx_frame.Rx_header.StdId == (CAN_INVERTER_BASE_ID1 + 1)) {
+                // Inverter Temperatures #2 - Base Address + 1
+                CAN_Parse_Inverter_Temp2(rx_frame, 1);
+            } else if (rx_frame.Rx_header.StdId == (CAN_INVERTER_BASE_ID1 + 2)) {
+                // Inverter Temperatures #3 and Torque Shudder - Base Address + 2
+                CAN_Parse_Inverter_Temp3TorqueShudder(rx_frame, 1);
+            } else if (rx_frame.Rx_header.StdId == (CAN_INVERTER_BASE_ID1 + 3)) {
+                // Inverter Analog Input Status - Base Address + 3
+                CAN_Parse_Inverter_AnalogInputStatus(rx_frame, 1);
+            } else if (rx_frame.Rx_header.StdId == (CAN_INVERTER_BASE_ID1 + 4)) {
+                // Inverter Digital Input Status - Base Address + 4
+                CAN_Parse_Inverter_DigitalInputStatus(rx_frame, 1);
+            } else if (rx_frame.Rx_header.StdId == (CAN_INVERTER_BASE_ID1 + 5)) {
+                // Inverter Motor Position Parameters - Base Address + 5
+                CAN_Parse_Inverter_MotorPositionParameters(rx_frame, 1);
+            } else if (rx_frame.Rx_header.StdId == (CAN_INVERTER_BASE_ID1 + 6)) {
+                // Inverter Current Parameters - Base Address + 6
+                CAN_Parse_Inverter_CurrentParameters(rx_frame, 1);
+            } else if (rx_frame.Rx_header.StdId == (CAN_INVERTER_BASE_ID1 + 7)) {
+                // Inverter Voltage Parameters - Base Address + 7
+                CAN_Parse_Inverter_VoltageParameters(rx_frame, 1);
+            } else if (rx_frame.Rx_header.StdId == (CAN_INVERTER_BASE_ID1 + 8)) {
+                // Inverter Flux Parameters - Base Address + 8
+                CAN_Parse_Inverter_FluxParameters(rx_frame, 1);
+            } else if (rx_frame.Rx_header.StdId == (CAN_INVERTER_BASE_ID1 + 9)) {
+                // Inverter Internal Voltage Parameters - Base Address + 9
+                CAN_Parse_Inverter_InternalVoltageParameters(rx_frame, 1);
+            } else if (rx_frame.Rx_header.StdId == (CAN_INVERTER_BASE_ID1 + 10)) {
+                // Inverter Internal State Parameters - Base Address + 10
+                CAN_Parse_Inverter_InternalStateParameters(rx_frame, 1);
+            } else if (rx_frame.Rx_header.StdId == (CAN_INVERTER_BASE_ID1 + 11)) {
+                // Inverter Fault Codes - Base Address + 11
+                CAN_Parse_Inverter_FaultCodes(rx_frame, 1);
+            } else if (rx_frame.Rx_header.StdId == (CAN_INVERTER_BASE_ID1 + 16)) {
+                // Inverter High Speed Parameters - Base Address + 16
+                CAN_Parse_Inverter_HighSpeedParameters(rx_frame, 1);
+            }
+            // ===== PM100DX Inverter2 CAN IDs =====
+            if (rx_frame.Rx_header.StdId == (CAN_INVERTER_BASE_ID2 + 0)) {
+                // Inverter Temperatures #1 - Base Address + 0
+                CAN_Parse_Inverter_Temp1(rx_frame, 0);
+            } else if (rx_frame.Rx_header.StdId == (CAN_INVERTER_BASE_ID2 + 1)) {
+                // Inverter Temperatures #2 - Base Address + 1
+                CAN_Parse_Inverter_Temp2(rx_frame, 0);
+            } else if (rx_frame.Rx_header.StdId == (CAN_INVERTER_BASE_ID2 + 2)) {
+                // Inverter Temperatures #3 and Torque Shudder - Base Address + 2
+                CAN_Parse_Inverter_Temp3TorqueShudder(rx_frame, 0);
+            } else if (rx_frame.Rx_header.StdId == (CAN_INVERTER_BASE_ID2 + 3)) {
+                // Inverter Analog Input Status - Base Address + 3
+                CAN_Parse_Inverter_AnalogInputStatus(rx_frame, 0);
+            } else if (rx_frame.Rx_header.StdId == (CAN_INVERTER_BASE_ID2 + 4)) {
+                // Inverter Digital Input Status - Base Address + 4
+                CAN_Parse_Inverter_DigitalInputStatus(rx_frame, 0);
+            } else if (rx_frame.Rx_header.StdId == (CAN_INVERTER_BASE_ID2 + 5)) {
+                // Inverter Motor Position Parameters - Base Address + 5
+                CAN_Parse_Inverter_MotorPositionParameters(rx_frame, 0);
+            } else if (rx_frame.Rx_header.StdId == (CAN_INVERTER_BASE_ID2 + 6)) {
+                // Inverter Current Parameters - Base Address + 6
+                CAN_Parse_Inverter_CurrentParameters(rx_frame, 0);
+            } else if (rx_frame.Rx_header.StdId == (CAN_INVERTER_BASE_ID2 + 7)) {
+                // Inverter Voltage Parameters - Base Address + 7
+                CAN_Parse_Inverter_VoltageParameters(rx_frame, 0);
+            } else if (rx_frame.Rx_header.StdId == (CAN_INVERTER_BASE_ID2 + 8)) {
+                // Inverter Flux Parameters - Base Address + 8
+                CAN_Parse_Inverter_FluxParameters(rx_frame, 0);
+            } else if (rx_frame.Rx_header.StdId == (CAN_INVERTER_BASE_ID2 + 9)) {
+                // Inverter Internal Voltage Parameters - Base Address + 9
+                CAN_Parse_Inverter_InternalVoltageParameters(rx_frame, 0);
+            } else if (rx_frame.Rx_header.StdId == (CAN_INVERTER_BASE_ID2 + 10)) {
+                // Inverter Internal State Parameters - Base Address + 10
+                CAN_Parse_Inverter_InternalStateParameters(rx_frame, 0);
+            } else if (rx_frame.Rx_header.StdId == (CAN_INVERTER_BASE_ID2 + 11)) {
+                // Inverter Fault Codes - Base Address + 11
+                CAN_Parse_Inverter_FaultCodes(rx_frame, 0);
+            } else if (rx_frame.Rx_header.StdId == (CAN_INVERTER_BASE_ID2 + 16)) {
+                // Inverter High Speed Parameters - Base Address + 16
+                CAN_Parse_Inverter_HighSpeedParameters(rx_frame, 0);
+            }
         }
     }
 }

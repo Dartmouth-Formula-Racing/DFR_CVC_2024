@@ -8,7 +8,7 @@
 #ifndef INC_CVC_CONTROL_H
 #define INC_CVC_CONTROL_H
 
-#define CONTROL_TASK_MS 50
+#define CONTROL_TASK_MS 10
 #define CONTROL_TORQUECOMMAND_MS CONTROL_TASK_MS
 
 #define THROTTLE_INVALID_TIMER 1000                 // Time before throttle is marked invalid
@@ -45,8 +45,9 @@ typedef enum {
     INITIAL,
     VOLTAGE_CHECK,
     WAIT_FOR_PRECHARGE,
-    PRECHARGE_START,
-    PRECHARGE_END,
+    PRECHARGE_STAGE1,
+    PRECHARGE_STAGE2,
+    PRECHARGE_STAGE3,
     NOT_READY_TO_DRIVE,
     BUZZER,
     READY_TO_DRIVE,
