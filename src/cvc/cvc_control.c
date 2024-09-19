@@ -322,13 +322,68 @@ void Control_CalculateTorque() {
     uint8_t command_left[8] = {0};
     uint8_t command_right[8] = {0};
 
+    // Rolling average of motor accelerations, used for identifying loss of traction
+    static int16_t last_left_speed = 0;
+    static int16_t last_right_speed = 0;
+    static uint32_t last_accel_time = 0;
+    static float left_accel[ACCEL_ROLLING_AVERAGE_SAMPLES] = {0}; // Circular buffer of last N left motor accelerations
+    static float right_accel[ACCEL_ROLLING_AVERAGE_SAMPLES] = {0}; // Circular buffer of last N right motor accelerations
+    static uint8_t accel_index = 0;
+
+    int16_t left_speed = (int16_t)CVC_GetData(INVERTER1_MOTOR_SPEED).data;
+    int16_t right_speed = (int16_t)CVC_GetData(INVERTER2_MOTOR_SPEED).data;
+
+    // Calculate motor acceleration
+    float time_delta = (HAL_GetTick() - last_accel_time) / 1000.0; // Seconds
+    float left_acceleration = (float)(left_speed - last_left_speed) / time_delta; // RPM/s
+    float right_acceleration = (float)(right_speed - last_right_speed) / time_delta; // RPM/s
+
+    left_accel[accel_index] = left_acceleration;
+    right_accel[accel_index] = right_acceleration;
+    accel_index = (accel_index + 1) % ACCEL_ROLLING_AVERAGE_SAMPLES;
+
+    // Update last values
+    last_left_speed = left_speed;
+    last_right_speed = right_speed;
+
+    // Calculate average acceleration
+    left_acceleration = 0;
+    right_acceleration = 0;
+    for (uint8_t i = 0; i < ACCEL_ROLLING_AVERAGE_SAMPLES; i++) {
+        left_acceleration += left_accel[i];
+        right_acceleration += right_accel[i];
+    }
+    left_acceleration /= ACCEL_ROLLING_AVERAGE_SAMPLES;
+    right_acceleration /= ACCEL_ROLLING_AVERAGE_SAMPLES;
+
+    float left_tc_division = 1.0;
+    float right_tc_division = 1.0;
+    // Do nothing if under acceleration limit, start reducing torque if over
+    if (left_acceleration > MOTOR_ACCEL_MAX) {
+        left_tc_division += TRACTION_CONTROL_GAIN * ((left_acceleration - MOTOR_ACCEL_MAX) / MOTOR_ACCEL_MAX);
+    }
+    if (right_acceleration > MOTOR_ACCEL_MAX) {
+        right_tc_division += TRACTION_CONTROL_GAIN * ((right_acceleration - MOTOR_ACCEL_MAX) / MOTOR_ACCEL_MAX);
+    }
+
+    // Calculate throttle percentage
     throttle = (float)throttleDifference / ((float)MAX_THROTTLE - (float)MIN_THROTTLE);
 
-    // volatile int16_t steering_data = CVC_GetData(SENSOR_STEERING_ANGLE).data;  // 0 to 4095, center is 2048
-    volatile uint16_t steering_data = CVC_GetData(INVERTER1_ANALOG_INPUT_1).data;
+    volatile int16_t steering_data = CVC_GetData(INVERTER1_ANALOG_INPUT_1).data;
     volatile uint8_t drive_mode = CVC_GetData(CVC_DRIVE_MODE).data;  // 0 = neutral, 1 = drive, 2 = reverse
-    // volatile float steering = (float)(steering_data - 2048) / 2048;                  // -1 to 1
-    volatile float steering = (float)(steering_data - ADC_WHEEL_RIGHT) / (float)(ADC_WHEEL_LEFT - ADC_WHEEL_RIGHT);
+    
+    // Steering is 10 bit voltage reading, -327.68 to 327.67 V (real voltage * 100)
+    volatile float steering_voltage = (float)steering_data * 0.01;
+    // Steering voltage increases when turning right, decreases when turning left
+    volatile float steering = (((steering_voltage - STEERING_LEFT_VOLTAGE) * 2) / (STEERING_RIGHT_VOLTAGE - STEERING_LEFT_VOLTAGE)) - 1;
+    // Clamp steering between -1 to 1
+    if (steering < -1.0) {
+        steering = -1.0;
+    }
+    if (steering > 1.0) {
+        steering = 1.0;
+    }
+
 
     // Bytes 0-1: Torque command (-32768 to 32767) Nm/10 [0, 1]
     // Bytes 2-3: Speed command (-32768 to 32767) RPM [2, 3]
@@ -361,13 +416,24 @@ void Control_CalculateTorque() {
             if (throttle > 0) {
                 // Calculate torque for pressed pedal
                 torque = (int16_t)(throttle * MAX_TORQUE);
+                
                 // Calculate torque vectoring based on steering angle
-                // torque_left = torque + (int16_t)(steering * TORQUE_VECTOR_GAIN * torque);  // Calculate torque vectoring based on steering angle
-                // torque_right = torque - (int16_t)(steering * TORQUE_VECTOR_GAIN * torque);
+                // Positive steering angle means turning right, negative means turning left
+                // Rules only allow subtracting torque, not adding
+                if (steering > 0) {
+                    torque_left = torque;
+                    torque_right = torque - (int16_t)(steering * TORQUE_VECTOR_GAIN * torque);
+                } else if (steering < 0) {
+                    torque_left = torque + (int16_t)(steering * TORQUE_VECTOR_GAIN * torque);
+                    torque_right = torque;
+                } else {
+                    torque_left = torque;
+                    torque_right = torque;
+                }
 
-                // Don't have steering angle yet
-                torque_left = torque;
-                torque_right = torque;
+                // Apply traction control
+                torque_left = (int16_t)(torque_left / left_tc_division);
+                torque_right = (int16_t)(torque_right / right_tc_division);
 
                 // Clamp torque values to 0-MAX_TORQUE
                 if (torque_left < 0) {

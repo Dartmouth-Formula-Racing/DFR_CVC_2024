@@ -814,7 +814,7 @@ void CAN_Parse_Inverter_Temp3TorqueShudder(CAN_Queue_Frame_t frame, bool isFirst
  * @retval None
  */
 
-// 01234567 89012345 67890123 45678901 23456789 01234567 89012345 67890123
+// This is measured as a low-voltage signal (signed integer, actual voltage * 100, range -327.68 to 327.67 V)
 void CAN_Parse_Inverter_AnalogInputStatus(CAN_Queue_Frame_t frame, bool isFirstInverter) {
     uint64_t full = 0;
     // Combine all 8 bytes into a single 64-bit integer

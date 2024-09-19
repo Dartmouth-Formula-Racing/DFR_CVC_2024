@@ -24,10 +24,9 @@
 #define MAX_THROTTLE_RTD 750  // Maximum throttle for entering ready to drive (5%)
 
 #define MAX_TORQUE (int)(1210 * 1.00)  // Maximum torque for motor
-#define TORQUE_VECTOR_GAIN 0.5         // Gain for torque vectoring
-#define ADC_WHEEL_LEFT 233
-#define ADC_WHEEL_RIGHT 0
-#define ADC_WHEEL_CENTER 436
+#define TORQUE_VECTOR_GAIN 1.0         // Gain for torque vectoring
+#define STEERING_LEFT_VOLTAGE 0.71      // Voltage for at left-most steering position
+#define STEERING_RIGHT_VOLTAGE 4.27     // Voltage for at right-most steering position
 
 #define ERROR_ALERT_INTERVAL 100  // Time in milliseconds for error alert
 
@@ -38,8 +37,12 @@
 
 #define VOLTAGE_DROP_TIMEOUT 500 // Time before voltage is considered invalid before leaving RTD
 
-#define PRECHARGE_TIME 1500  // Time in milliseconds for precharge to take place
-#define PRECHARGE_HOLD_TIME 200  // Minimum time in milliseconds for the contactors to be closed before the vehicle can be discharged
+#define PRECHARGE_TIME 5000  // Time in milliseconds for precharge to take place
+#define PRECHARGE_HOLD_TIME 500  // Minimum time in milliseconds for the contactors to be closed before the vehicle can be discharged
+
+#define ACCEL_ROLLING_AVERAGE_SAMPLES 3  // Number of samples to average for acceleration
+#define TRACTION_CONTROL_GAIN 1.5        // Gain for traction control
+#define MOTOR_ACCEL_MAX 359.435652       // Acceleration at which wheel breaks traction (RPM/s)
 
 typedef enum {
     INITIAL,
